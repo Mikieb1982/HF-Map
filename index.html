@@ -292,449 +292,364 @@
             const weatherWidget = document.getElementById('weather-widget');
 
             // --- Map Initialization ---
-            const centerLat = 52.147;
-            const centerLng = 12.589;
-            const initialZoom = 11;
+            const centerLat = 52.147; // Approximate center of Hoher Fläming
+            const centerLng = 12.589; // Approximate center of Hoher Fläming
+            const initialZoom = 10; // Adjusted for a broader view of the region
             const map = L.map(mapElement, {
-                zoomControl: true
+                zoomControl: true // Default Leaflet zoom control
             }).setView([centerLat, centerLng], initialZoom);
 
             // --- Base Layers ---
             const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
                 maxZoom: 19
-            }).addTo(map);
+            }).addTo(map); // Add OSM as default base layer
 
             const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                attribution: 'Tiles &copy; Esri &mdash; Source: Esri, etc.',
+                attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
                 maxZoom: 19
             });
 
-            const baseMaps = { "Karte": osmLayer, "Satellit": satelliteLayer };
-            const layerControl = L.control.layers(baseMaps).addTo(map);
+            // Layer control for switching base maps
+            const baseMaps = {
+                "Karte": osmLayer,
+                "Satellit": satelliteLayer
+            };
+            const layerControl = L.control.layers(baseMaps).addTo(map); // Add layer control to map
 
             // --- Data Storage ---
-            let allRoutesData = null;
-            let allPOIsData = null;
-            let routeLayers = [];
-            let poiLayers = [];
+            let allRoutesData = null; // To store fetched or defined route data
+            let allPOIsData = null;   // To store fetched or defined POI data
+            let routeLayers = [];     // Array to keep track of currently displayed route layers
+            let poiLayers = {};       // Object to keep track of POI layer groups
 
             // --- Placeholder Data (Updated with PDF info v3 & User Coords - route coordinates are still placeholders) ---
+            // Note: Coordinates are illustrative and do not represent actual route paths.
+            // Lengths and durations are more aligned with typical expectations for such routes.
             const placeholderRoutes = {
                 "type": "FeatureCollection",
                 "features": [
                     // --- Major Walking Routes ---
-                    { "type": "Feature", "geometry": { "type": "LineString", "coordinates": [[12.590, 52.141], [12.77, 52.18], [12.4521, 52.1121], [12.4, 51.9]] }, "properties": { "name": "Burgenwanderweg", "type": "walking", "length_km": 147.0, "duration_h": 40.0, "start_point": "bad-belzig", "public_transport_accessible": true, "tags": ["hiking-trail", "castle", "history", "nature", "long-distance"], "difficulty": "medium" } },
-                    { "type": "Feature", "geometry": { "type": "LineString", "coordinates": [[12.590, 52.141], [12.4521, 52.1121]] }, "properties": { "name": "Internationaler Kunstwanderweg", "type": "walking", "length_km": 40.0, "duration_h": 10.0, "start_point": "bad-belzig", "public_transport_accessible": true, "tags": ["hiking-trail", "art", "nature", "long-distance"], "difficulty": "medium" } },
-
-                    // --- Other Walking Routes ---
-                    { "type": "Feature", "geometry": { "type": "LineString", "coordinates": [[12.3, 52.1], [12.4, 52.15], [12.5, 52.1]] }, "properties": { "name": "Kunstwanderweg Etappe 1", "type": "walking", "length_km": 15.2, "duration_h": 4.0, "start_point": "bad-belzig", "public_transport_accessible": true, "tags": ["art", "nordic-walking"], "difficulty": "medium" } },
-                    { "type": "Feature", "geometry": { "type": "LineString", "coordinates": [[12.4, 52.0], [12.45, 51.95], [12.5, 51.9]] }, "properties": { "name": "Burgenwanderweg Etappe 3", "type": "walking", "length_km": 18.0, "duration_h": 5.0, "start_point": "niemegk", "public_transport_accessible": true, "tags": ["history", "castle"], "difficulty": "hard" } },
-                    { "type": "Feature", "geometry": { "type": "LineString", "coordinates": [[12.7, 52.15], [12.75, 52.2], [12.8, 52.25]] }, "properties": { "name": "Familienrunde Rabenstein", "type": "walking", "length_km": 4.1, "duration_h": 1.0, "start_point": "raben", "public_transport_accessible": true, "tags": ["family-friendly", "stroller-friendly", "castle", "circular"], "difficulty": "easy" } },
-                    { "type": "Feature", "geometry": { "type": "LineString", "coordinates": [[12.5, 52.05], [12.55, 52.08], [12.6, 52.05]] }, "properties": { "name": "Niemegker Streuobstwiesen", "type": "walking", "length_km": 6.5, "duration_h": 1.5, "start_point": "niemegk", "public_transport_accessible": false, "tags": ["nature", "circular"], "difficulty": "easy" } },
-                    // --- NEW HIKING ROUTES/AREAS ---
-                    { "type": "Feature", "geometry": { "type": "LineString", "coordinates": [[12.589, 52.147], [12.5780, 52.0414]] }, "properties": { "name": "Burgenwanderweg Etappe Bad Belzig - Raben", "type": "walking", "length_km": 19.0, "duration_h": 5.0, "start_point": "bad-belzig", "public_transport_accessible": true, "tags": ["hiking-trail", "castle", "history"], "difficulty": "medium" } },
-                    { "type": "Feature", "geometry": { "type": "LineString", "coordinates": [[12.4521, 52.1121], [12.4521, 52.1121]] }, "properties": { "name": "Wiesenburg Schlosspark Runde", "type": "walking", "length_km": 3.0, "duration_h": 0.75, "start_point": "wiesenburg", "public_transport_accessible": true, "tags": ["park", "castle", "circular", "family-friendly"], "difficulty": "easy" } },
-                    { "type": "Feature", "geometry": { "type": "LineString", "coordinates": [[12.590, 52.141], [12.590, 52.141]] }, "properties": { "name": "Wanderung ab Burg Eisenhardt", "type": "walking", "length_km": 5.0, "duration_h": 1.5, "start_point": "bad-belzig", "public_transport_accessible": true, "tags": ["castle", "history"], "difficulty": "easy" } },
-                    { "type": "Feature", "geometry": { "type": "LineString", "coordinates": [[12.617, 52.121], [12.617, 52.121]] }, "properties": { "name": "Wanderung am Hagelberg", "type": "walking", "length_km": 4.0, "duration_h": 1.0, "start_point": "hagelberg", "public_transport_accessible": false, "tags": ["viewpoint", "nature"], "difficulty": "easy" } },
+                    {
+                        "type": "Feature",
+                        "geometry": { "type": "LineString", "coordinates": [[12.590, 52.141], [12.65, 52.15], [12.70, 52.12], [12.77, 52.18], [12.70, 52.20], [12.60, 52.22], [12.50, 52.18], [12.4521, 52.1121], [12.4, 51.98]] },
+                        "properties": { "name": "Burgenwanderweg (Hoher Fläming Section)", "type": "walking", "length_km": 147.0, "duration_h": 40.0, "start_point": "bad-belzig", "end_point": "various", "public_transport_accessible": true, "tags": ["hiking-trail", "castle", "history", "nature", "long-distance", "e11"], "difficulty": "medium", "description": "A long-distance hiking trail connecting castles and historical sites across the Hoher Fläming region. Part of the European long-distance path E11." }
+                    },
+                    {
+                        "type": "Feature",
+                        "geometry": { "type": "LineString", "coordinates": [[12.58, 52.14], [12.55, 52.10], [12.60, 52.08], [12.65, 52.11], [12.63, 52.15]] },
+                        "properties": { "name": "Kunstwanderweg (Hoher Fläming Section)", "type": "walking", "length_km": 18.0, "duration_h": 5.0, "start_point": "bad-belzig", "end_point": "wiesenburg", "public_transport_accessible": true, "tags": ["art", "nature", "culture", "hiking-trail"], "difficulty": "easy", "description": "A trail connecting Bad Belzig and Wiesenburg, featuring various art installations along the way." }
+                    },
+                    // --- Shorter/Local Walking Routes ---
+                    {
+                        "type": "Feature",
+                        "geometry": { "type": "LineString", "coordinates": [[12.305, 52.137], [12.31, 52.14], [12.30, 52.145], [12.29, 52.142], [12.305, 52.137]] },
+                        "properties": { "name": "Wiesenburg Park Circular Walk", "type": "walking", "length_km": 5.0, "duration_h": 1.5, "start_point": "wiesenburg", "public_transport_accessible": true, "tags": ["park", "nature", "family-friendly", "circular", "castle"], "difficulty": "easy", "description": "A pleasant walk through the Wiesenburg Castle park and surrounding nature." }
+                    },
+                    {
+                        "type": "Feature",
+                        "geometry": { "type": "LineString", "coordinates": [[12.43, 52.06], [12.44, 52.055], [12.45, 52.065], [12.435, 52.07]] },
+                        "properties": { "name": "Rabenstein Castle Loop", "type": "walking", "length_km": 8.0, "duration_h": 2.5, "start_point": "raben", "public_transport_accessible": true, "tags": ["castle", "forest", "nature", "nordic-walking"], "difficulty": "medium", "description": "A scenic loop around Rabenstein Castle, offering views and forest paths." }
+                    },
+                    {
+                        "type": "Feature",
+                        "geometry": { "type": "LineString", "coordinates": [[12.68, 52.09], [12.70, 52.08], [12.71, 52.10], [12.69, 52.11]] },
+                        "properties": { "name": "Niemegk Town & Country Walk", "type": "walking", "length_km": 6.0, "duration_h": 2.0, "start_point": "niemegk", "public_transport_accessible": true, "tags": ["town", "fields", "easy-walk", "family-friendly"], "difficulty": "easy", "description": "An easy walk exploring the town of Niemegk and its immediate surroundings." }
+                    },
 
                     // --- Cycling Routes ---
-                    { "type": "Feature", "geometry": { "type": "LineString", "coordinates": [[12.6, 52.0], [12.7, 52.05], [12.8, 52.0]] }, "properties": { "name": "R1 Europaradweg (Abschnitt)", "type": "cycling", "length_km": 45.8, "duration_h": 3.0, "start_point": "wiesenburg", "public_transport_accessible": false, "tags": ["long-distance"], "difficulty": "medium" } },
-                    { "type": "Feature", "geometry": { "type": "LineString", "coordinates": [[12.2, 52.15], [12.25, 52.18], [12.3, 52.15]] }, "properties": { "name": "Tour Brandenburg Etappe", "type": "cycling", "length_km": 30.0, "duration_h": 2.0, "start_point": "bad-belzig", "public_transport_accessible": true, "tags": ["long-distance"], "difficulty": "medium" } },
-                    { "type": "Feature", "geometry": { "type": "LineString", "coordinates": [[12.4521, 52.1121], [12.7, 52.08], [12.8, 52.0]] }, "properties": { "name": "Ton & Töpfe-Radtour", "type": "cycling", "length_km": 35.0, "duration_h": 2.5, "start_point": "wiesenburg", "public_transport_accessible": false, "tags": ["pottery", "circular", "crafts", "nature"], "difficulty": "medium" } },
-                    { "type": "Feature", "geometry": { "type": "LineString", "coordinates": [[12.590, 52.141], [12.5, 52.1], [12.7, 52.05]] }, "properties": { "name": "Radtour zum Mittelpunkt", "type": "cycling", "length_km": 31.0, "duration_h": 2.5, "start_point": "bad-belzig", "public_transport_accessible": true, "tags": ["history", "nature", "viewpoint", "circular"], "difficulty": "medium" } },
-                    { "type": "Feature", "geometry": { "type": "LineString", "coordinates": [[12.590, 52.141], [12.4521, 52.1121], [12.65, 52.12]] }, "properties": { "name": "Kleine Fläming-Radtour", "type": "cycling", "length_km": 36.0, "duration_h": 3.0, "start_point": "bad-belzig", "public_transport_accessible": true, "tags": ["castle", "pottery", "nature", "circular"], "difficulty": "medium" } },
-                    { "type": "Feature", "geometry": { "type": "LineString", "coordinates": [[12.590, 52.141], [12.6, 52.05], [12.5, 51.95]] }, "properties": { "name": "Forellen-Radtour", "type": "cycling", "length_km": 43.0, "duration_h": 3.5, "start_point": "bad-belzig", "public_transport_accessible": true, "tags": ["nature", "fish", "forellenhöfe", "plane valley", "circular"], "difficulty": "easy" } },
-                    { "type": "Feature", "geometry": { "type": "LineString", "coordinates": [[12.77, 52.18], [12.7, 52.1], [12.5, 51.95]] }, "properties": { "name": "Feldsteinkirchen-Radtour", "type": "cycling", "length_km": 29.0, "duration_h": 2.5, "start_point": "raben", "public_transport_accessible": true, "tags": ["church", "history", "nature", "circular", "feldstein"], "difficulty": "medium" } },
-                    { "type": "Feature", "geometry": { "type": "LineString", "coordinates": [[12.590, 52.141], [12.77, 52.18], [12.4521, 52.1121]] }, "properties": { "name": "3-Burgen-Radtour", "type": "cycling", "length_km": 51.0, "duration_h": 4.0, "start_point": "bad-belzig", "public_transport_accessible": true, "tags": ["castle", "history", "nature", "pottery", "circular"], "difficulty": "medium" } }
+                    {
+                        "type": "Feature",
+                        "geometry": { "type": "LineString", "coordinates": [[12.59, 52.14], [12.45, 52.11], [12.30, 52.13], [12.35, 52.18], [12.50, 52.20]] },
+                        "properties": { "name": "Fläming Skate - RK1 (Short Loop)", "type": "cycling", "length_km": 25.0, "duration_h": 2.0, "start_point": "bad-belzig", "public_transport_accessible": true, "tags": ["cycling", "skating", "paved", "family-friendly", "fläming-skate"], "difficulty": "easy", "description": "A shorter loop section of the famous Fläming Skate, suitable for families and casual cyclists." }
+                    },
+                    {
+                        "type": "Feature",
+                        "geometry": { "type": "LineString", "coordinates": [[12.59, 52.14], [12.77, 52.18], [12.80, 52.10], [12.68, 52.00], [12.50, 51.95], [12.40, 52.05], [12.59, 52.14]] },
+                        "properties": { "name": "Tour de Fläming Castles", "type": "cycling", "length_km": 75.0, "duration_h": 5.0, "start_point": "bad-belzig", "public_transport_accessible": true, "tags": ["cycling", "castle", "history", "scenic"], "difficulty": "medium", "description": "A longer cycling tour connecting several castles and picturesque villages in the Hoher Fläming." }
+                    },
+                    {
+                        "type": "Feature",
+                        "geometry": { "type": "LineString", "coordinates": [[12.305, 52.137],[12.10, 52.15], [12.00, 52.05], [12.25, 51.95], [12.45, 52.00], [12.55, 52.08], [12.40, 52.12], [12.305, 52.137]] },
+                        "properties": { "name": "Western Fläming Explorer (Cycling)", "type": "cycling", "length_km": 90.0, "duration_h": 6.5, "start_point": "wiesenburg", "public_transport_accessible": false, "tags": ["cycling", "long-distance", "nature", "villages"], "difficulty": "hard", "description": "A challenging cycling route exploring the western parts of Hoher Fläming, featuring varied terrain." }
+                    }
                 ]
             };
 
-            const placeholderPOIs = {
-                "type": "FeatureCollection",
-                "features": [
-                    // --- Major Castles ---
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.590, 52.141] }, "properties": { "name": "Burg Eisenhardt", "type": "castle", "category": "amenities", "contact_info": "Bad Belzig" } }, // Updated Coords
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.4521, 52.1121] }, "properties": { "name": "Schloss Wiesenburg & Park", "type": "castle", "category": "amenities", "contact_info": "Wiesenburg" } }, // Updated Coords
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.77, 52.18] }, "properties": { "name": "Burg Rabenstein", "type": "castle", "category": "amenities", "contact_info": "Raben" } },
-                     // --- Info & Visitor Centers ---
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.57, 52.135] }, "properties": { "name": "Tourist-Information Bad Belzig", "type": "tourist_info", "category": "amenities" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.5780, 52.0414] }, "properties": { "name": "Naturparkzentrum Hoher Fläming", "type": "tourist_info", "category": "amenities", "contact_info": "Raben, Brennereiweg 45" } }, // Updated Coords
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.778, 52.063] }, "properties": { "name": "Touristerei Wiesenburg", "type": "tourist_info", "category": "amenities", "contact_info": "Wiesenburg Rathaus" } },
-                    // --- Nature & Observation ---
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.65, 52.19] }, "properties": { "name": "Staatliche Vogelschutzwarte Baitz", "type": "nature", "category": "amenities", "contact_info": "Baitz, Im Winkel 13" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.67, 52.18] }, "properties": { "name": "Beobachtungsturm Belziger Landschaftswiesen", "type": "viewpoint", "category": "amenities", "contact_info": "Near Baitz/Brück" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.86, 52.14] }, "properties": { "name": "Riesenstein Grubo", "type": "geological_feature", "category": "amenities" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.70, 52.10] }, "properties": { "name": "Grützdorfer Aussichtsturm", "type": "viewpoint", "category": "amenities" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.66, 52.06] }, "properties": { "name": "Aussichtsturm Altes Wasserwerk", "type": "viewpoint", "category": "amenities", "contact_info":"Garrey" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.617, 52.121] }, "properties": { "name": "Hagelberg Gipfelkreuz & Denkmal", "type": "viewpoint", "category": "amenities" } }, // Updated Coords
-                     // --- Accommodation ---
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.582, 52.141] }, "properties": { "name": "Hotel Burg Eisenhardt", "type": "hotel", "category": "accommodation", "contact_info": "Bad Belzig" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.57, 52.11] }, "properties": { "name": "Hotel & Restaurant Springbach Mühle", "type": "hotel", "category": "accommodation", "contact_info": "Bad Belzig, Mühlenweg 2" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.58, 52.10] }, "properties": { "name": "Paulinenhof Seminarhotel", "type": "hotel", "category": "accommodation", "contact_info": "Kuhlowitz" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.65, 51.99] }, "properties": { "name": "Landhaus Alte Schmiede", "type": "hotel", "category": "accommodation", "contact_info": "Lühnsdorf" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.605, 52.118] }, "properties": { "name": "Hotel Zum Landhaus Sternberg", "type": "hotel", "category": "accommodation", "contact_info": "Lüsse" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.57, 52.14] }, "properties": { "name": "Pension Zur Postmeile", "type": "pension", "category": "accommodation", "contact_info": "Bad Belzig, Bahnhofstr. 16" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.835, 52.095] }, "properties": { "name": "Pension Zum Waldblick", "type": "pension", "category": "accommodation", "contact_info": "Jeserigerhütten" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.705, 52.055] }, "properties": { "name": "Campingplatz Hoher Fläming", "type": "campsite", "category": "accommodation", "contact_info": "Rädigke, Bergstr. 24a" } }, // Approx Coords for Rädigke
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.68, 52.165] }, "properties": { "name": "COCONAT - a workation retreat", "type": "coworking", "category": "accommodation", "contact_info": "Klein Glien" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.75, 52.05] }, "properties": { "name": "Pension Zur Mühle", "type": "pension", "category": "accommodation", "contact_info": "Wiesenburg area" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.65, 52.12] }, "properties": { "name": "Ferienwohnung am Waldrand", "type": "holiday_apartment", "category": "accommodation" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.83, 52.09] }, "properties": { "name": "Familienhotel Brandtsheide", "type": "hotel", "category": "accommodation", "contact_info": "Jeserig/Fläming" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.57, 52.138] }, "properties": { "name": "Ferienwohnung Auszeit Näthe", "type": "holiday_apartment", "category": "accommodation", "contact_info": "Bad Belzig, Stadionweg 1" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.572, 52.137] }, "properties": { "name": "Ferienwohnung Astrid Scheinig", "type": "holiday_apartment", "category": "accommodation", "contact_info": "Bad Belzig, Clara-Zetkin-Str. 6" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.65, 52.085] }, "properties": { "name": "Ferienwohnung historisches Pfarrhaus", "type": "holiday_apartment", "category": "accommodation", "contact_info": "Werbig" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.68, 52.105] }, "properties": { "name": "Ferienwohnung Ilka Hübner", "type": "holiday_apartment", "category": "accommodation", "contact_info": "Neschholz" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.573, 52.136] }, "properties": { "name": "Komfort-Ferienwohnung Bad Belzig", "type": "holiday_apartment", "category": "accommodation", "contact_info": "Bad Belzig, Mauerstr. 1d" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.585, 52.146] }, "properties": { "name": "Ferienwohnung Trapp", "type": "holiday_apartment", "category": "accommodation", "contact_info": "Bad Belzig, August-Bebel-Str. 1" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.576, 52.139] }, "properties": { "name": "Modernes Altstadt Apartment", "type": "holiday_apartment", "category": "accommodation", "contact_info": "Bad Belzig, Str. d. Einheit 52" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.575, 52.138] }, "properties": { "name": "Große Ferienwohnung mitten in Bad Belzig", "type": "holiday_apartment", "category": "accommodation", "contact_info": "Bad Belzig, Niemegker Str. 2" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.701, 52.121] }, "properties": { "name": "Ferienwohnung Gut Schmerwitz", "type": "holiday_apartment", "category": "accommodation", "contact_info": "Schmerwitz" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.76, 52.04] }, "properties": { "name": "SGH Fläming GmbH (Gruppenhaus)", "type": "group_house", "category": "accommodation", "contact_info": "Dahnsdorf" } },
+            // --- POI Data (Placeholder - to be expanded) ---
+            // Example: allPOIsData = { "type": "FeatureCollection", "features": [ ... POI features ... ] };
+            // Each POI feature should have a "properties" object with at least a "name" and a "category" (e.g., "accommodation", "amenity", "viewpoint")
+            // And an "icon" property (e.g., "fa-bed", "fa-utensils", "fa-camera") and "iconColor" (e.g., 'blue', 'green')
 
-                     // --- Food & Drink ---
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.57, 52.136] }, "properties": { "name": "Eiscafé Zur Postmeile", "type": "cafe", "category": "amenities", "contact_info": "Bad Belzig, Bahnhofstr. 16" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.588, 52.149] }, "properties": { "name": "Restaurant KURPARK15", "type": "restaurant", "category": "amenities", "contact_info": "Bad Belzig, Am Kurpark 15 (SteinTherme)" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.581, 52.141] }, "properties": { "name": "Burgwirtschaft Eisenhardt", "type": "restaurant", "category": "amenities", "contact_info": "Bad Belzig, Burg" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.55, 52.13] }, "properties": { "name": "Restaurant Am Markt", "type": "restaurant", "category": "amenities", "contact_info": "Bad Belzig area" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.779, 52.058] }, "properties": { "name": "Café am Schlosstor", "type": "cafe", "category": "amenities", "contact_info": "Wiesenburg" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.781, 52.059] }, "properties": { "name": "Trattoria Da Dino", "type": "restaurant", "category": "amenities", "contact_info": "Wiesenburg" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.702, 52.121] }, "properties": { "name": "Bio-Restaurant Gutsküche", "type": "restaurant", "category": "amenities", "contact_info": "Schmerwitz" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.5, 52.08] }, "properties": { "name": "Hirschtränke Verlorenwasser", "type": "restaurant", "category": "amenities" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.42, 52.015] }, "properties": { "name": "Hofcafé Gasthof Haug", "type": "cafe", "category": "amenities", "contact_info": "Rottstock" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.68, 52.16] }, "properties": { "name": "Kunstcafé Wildmut", "type": "cafe", "category": "amenities", "contact_info": "Klein Glien" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.776, 52.179] }, "properties": { "name": "Gasthaus Hemmerling", "type": "restaurant", "category": "amenities", "contact_info": "Raben" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.7, 52.05] }, "properties": { "name": "Gasthof Moritz", "type": "restaurant", "category": "amenities", "contact_info": "Rädigke" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.65, 52.05] }, "properties": { "name": "Pension und Eiscafé Lehmann", "type": "cafe", "category": "amenities", "contact_info": "Garrey" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.692, 52.071] }, "properties": { "name": "Gasthof Zum Alten Brauhaus", "type": "restaurant", "category": "amenities", "contact_info": "Niemegk" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.75, 51.98] }, "properties": { "name": "Komthurmühle Dahnsdorf", "type": "restaurant", "category": "amenities" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.56, 52.138] }, "properties": { "name": "Café Klinke", "type": "cafe", "category": "amenities", "contact_info": "Bad Belzig" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.586, 52.146] }, "properties": { "name": "Fläming Bahnhof Bistro", "type": "cafe", "category": "amenities", "contact_info": "Bad Belzig Bahnhof" } },
-                    // --- Shopping & Crafts ---
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.705, 52.122] }, "properties": { "name": "Töpferei Königsblau Keramik", "type": "craft", "category": "amenities", "contact_info": "Schmerwitz" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.703, 52.123] }, "properties": { "name": "Bio-Hofladen Gut Schmerwitz", "type": "shop", "category": "amenities", "contact_info": "Schmerwitz" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.465, 51.982] }, "properties": { "name": "Töpfereien Görzke", "type": "craft", "category": "amenities" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.75, 52.16] }, "properties": { "name": "Puppen- & Bärenmanufaktur Kaiser-Bär", "type": "craft", "category": "amenities", "contact_info": "Schlamau" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.775, 52.177] }, "properties": { "name": "Flämingladen", "type": "shop", "category": "amenities", "contact_info": "Raben Naturparkzentrum" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.771, 52.181] }, "properties": { "name": "Hof Rabenstein Laden", "type": "shop", "category": "amenities", "contact_info": "Burg Rabenstein" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.686, 52.076] }, "properties": { "name": "Hofladen im Wasserturm", "type": "shop", "category": "amenities", "contact_info": "Niemegk" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.585, 52.142] }, "properties": { "name": "Chocolaterie Burg Eisenhardt", "type": "shop", "category": "amenities", "contact_info": "Bad Belzig" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.583, 52.143] }, "properties": { "name": "Whisky Destillerie Bad Belzig", "type": "shop", "category": "amenities", "contact_info": "Bad Belzig" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.575, 52.136] }, "properties": { "name": "LandMarkt Bad Belzig", "type": "shop", "category": "amenities", "contact_info": "Bad Belzig" } },
-                    // --- Leisure & Other Amenities ---
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.588, 52.148] }, "properties": { "name": "Stein Therme Bad Belzig", "type": "spa", "category": "amenities" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.786, 52.053] }, "properties": { "name": "Countrygolf Wiesenburg", "type": "leisure", "category": "amenities", "contact_info": "Wiesenburg Bahnhof" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.784, 52.052] }, "properties": { "name": "Kletterhalle Wiesenburg", "type": "leisure", "category": "amenities", "contact_info": "Wiesenburg Bahnhof" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.4, 52.0] }, "properties": { "name": "Forellenhof 25 Teiche", "type": "leisure", "category": "amenities", "contact_info": "Rottstock" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.46, 51.98] }, "properties": { "name": "Handwerkerhof Görzke", "type": "museum", "category": "amenities" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.64, 52.19] }, "properties": { "name": "Bockwindmühle Borne", "type": "windmill", "category": "amenities" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.71, 52.058] }, "properties": { "name": "Fläming-Bibliothek Rädigke", "type": "library", "category": "amenities" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.6889, 52.0749] }, "properties": { "name": "Renaissance-Rathaus Niemegk", "type": "historic", "category": "amenities" } }, // Updated Coords
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.685, 52.075] }, "properties": { "name": "Wasserturm Niemegk (Brausemuseum)", "type": "museum", "category": "amenities" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.72, 52.00] }, "properties": { "name": "Forellenhof Locktow", "type": "leisure", "category": "amenities" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.725, 51.995] }, "properties": { "name": "Sport-Flugplatz Locktow (UL)", "type": "leisure", "category": "amenities" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.61, 52.125] }, "properties": { "name": "Segelflugplatz Lüsse", "type": "leisure", "category": "amenities" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.7, 51.98] }, "properties": { "name": "Werdermühle Forellenhof", "type": "leisure", "category": "amenities" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.75, 52.11] }, "properties": { "name": "Wildnisschule Hoher Fläming", "type": "education", "category": "amenities", "contact_info": "Grützdorf" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.578, 52.132] }, "properties": { "name": "KleinKunstWerk", "type": "theater", "category": "amenities", "contact_info": "Bad Belzig, Mühlenhölzchen 1a" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.35, 52.25] }, "properties": { "name": "Reiterhof Groß Briesen", "type": "horseback_riding", "category": "amenities", "contact_info": "Groß Briesen" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.58, 52.142] }, "properties": { "name": "Heimatmuseum Burg Eisenhardt", "type": "museum", "category": "amenities", "contact_info": "Bad Belzig, Burg" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.58, 52.15] }, "properties": { "name": "Freizeit- und Erlebnisbad Bad Belzig", "type": "leisure", "category": "amenities", "contact_info": "Bad Belzig, Weitzgrunder Str. 6" } },
-                    // --- Churches (Examples - add more as needed) ---
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.57, 52.137] }, "properties": { "name": "Stadtkirche St. Marien", "type": "church", "category": "amenities", "contact_info": "Bad Belzig" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.581, 52.141] }, "properties": { "name": "Bricciuskirche", "type": "church", "category": "amenities", "contact_info": "Bad Belzig" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.65, 52.08] }, "properties": { "name": "Feldsteinkirche Werbig", "type": "church", "category": "amenities" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.45, 52.05] }, "properties": { "name": "Fachwerkkirche Dahlen", "type": "church", "category": "amenities" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.41, 52.01] }, "properties": { "name": "Feldsteinkirche Rottstock", "type": "church", "category": "amenities" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.65, 52.18] }, "properties": { "name": "Feldsteinkirche Borne", "type": "church", "category": "amenities" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.755, 52.165] }, "properties": { "name": "Feldsteinkirche Schlamau", "type": "church", "category": "amenities" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.85, 52.15] }, "properties": { "name": "Feldsteinkirche Grubo", "type": "church", "category": "amenities" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.82, 52.10] }, "properties": { "name": "Feldsteinkirche Jeserig/Fläming", "type": "church", "category": "amenities" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.778, 52.175] }, "properties": { "name": "Feldsteinkirche Raben", "type": "church", "category": "amenities" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.78, 52.21] }, "properties": { "name": "Feldsteinkirche Klein Marzehns", "type": "church", "category": "amenities" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.655, 51.995] }, "properties": { "name": "Backsteinkirche Lühnsdorf", "type": "church", "category": "amenities" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.6, 52.01] }, "properties": { "name": "Feldsteinkirche Buchholz b. Niemegk", "type": "church", "category": "amenities" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.705, 52.055] }, "properties": { "name": "Feldsteinkirche Rädigke", "type": "church", "category": "amenities" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.655, 52.055] }, "properties": { "name": "Feldsteinkirche Garrey", "type": "church", "category": "amenities" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.6, 52.08] }, "properties": { "name": "Feldsteinkirche Zixdorf", "type": "church", "category": "amenities" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.55, 52.05] }, "properties": { "name": "Feldsteinkirche Neuendorf b. Niemegk", "type": "church", "category": "amenities" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.6889, 52.0749] }, "properties": { "name": "Sankt Johannis Kirche Niemegk", "type": "church", "category": "amenities" } }, // Updated Coords
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.62, 52.16] }, "properties": { "name": "Feldsteinkirche Schwanebeck", "type": "church", "category": "amenities" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.68, 52.10] }, "properties": { "name": "Feldsteinkirche Neschholz", "type": "church", "category": "amenities" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.6, 52.015] }, "properties": { "name": "Feldsteinkirche Kranepuhl", "type": "church", "category": "amenities" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.55, 52.08] }, "properties": { "name": "Feldsteinkirche Preußnitz", "type": "church", "category": "amenities" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.575, 52.105] }, "properties": { "name": "Feldsteinkirche Kuhlowitz", "type": "church", "category": "amenities" } },
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.6, 52.12] }, "properties": { "name": "Feldsteinkirche Lüsse", "type": "church", "category": "amenities" } },
-                    // --- Transport ---
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.589, 52.147] }, "properties": { "name": "Fläming Bahnhof Bad Belzig", "type": "train_station", "category": "amenities" } }, // Updated Coords
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.785, 52.055] }, "properties": { "name": "Bahnhof Wiesenburg", "type": "train_station", "category": "amenities" } },
-                     // --- Facilities ---
-                    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.76, 52.055] }, "properties": { "name": "Öffentliche Toilette Wiesenburg", "type": "public_toilet", "category": "amenities" } },
-                ]
-            };
-
-            // --- Layer Groups ---
-            const walkingLayerGroup = L.featureGroup();
-            const cyclingLayerGroup = L.featureGroup();
-            const accommodationLayerGroup = L.featureGroup();
-            const amenitiesLayerGroup = L.featureGroup();
-
-            // Make layer groups globally accessible
-            window.walkingLayerGroup = walkingLayerGroup;
-            window.cyclingLayerGroup = cyclingLayerGroup;
-            window.accommodationLayerGroup = accommodationLayerGroup;
-            window.amenitiesLayerGroup = amenitiesLayerGroup;
-
-
-            const overlayMaps = {
-                "Walking Routes": walkingLayerGroup,
-                "Cycling Routes": cyclingLayerGroup,
-                "Accommodation": accommodationLayerGroup,
-                "Amenities": amenitiesLayerGroup
-            };
-
-            // Add overlay groups to layer control and map initially
-            for (const name in overlayMaps) {
-                layerControl.addOverlay(overlayMaps[name], name);
-                map.addLayer(overlayMaps[name]);
+            // --- Function to Show Loading Indicator ---
+            function showLoading(isLoading) {
+                loadingIndicator.style.display = isLoading ? 'flex' : 'none';
             }
 
-            let highlightedLayer = null; // To keep track of the highlighted route
-
-            // --- Function to Create Font Awesome Icons ---
-            function createFaIcon(faClass, bgColor) {
+            // --- Function to Create Custom Icons for POIs (Example) ---
+            function createCustomIcon(iconClass, color, size = [28, 28]) {
                 return L.divIcon({
-                    html: `<i class="${faClass}"></i>`,
-                    className: `leaflet-fa-icon ${bgColor}`,
-                    iconSize: [24, 24],
-                    iconAnchor: [12, 12],
-                    popupAnchor: [0, -12]
+                    html: `<i class="fas ${iconClass}" style="color: ${color};"></i>`,
+                    className: 'leaflet-fa-icon', // General class for potential global styling
+                    iconSize: size,
+                    iconAnchor: [size[0] / 2, size[1]], // Point of the icon which will correspond to marker's location
+                    popupAnchor: [0, -size[1]]    // Point from which the popup should open relative to the iconAnchor
                 });
-            }
-
-            // --- Function to Get POI Icon based on Type ---
-            function getPoiIcon(type) {
-                switch(type) {
-                    // Accommodation
-                    case 'hotel':               return createFaIcon('fas fa-hotel', 'bg-red-600');
-                    case 'pension':             return createFaIcon('fas fa-bed', 'bg-orange-500');
-                    case 'campsite':            return createFaIcon('fas fa-campground', 'bg-green-600');
-                    case 'holiday_apartment':   return createFaIcon('fas fa-house-user', 'bg-yellow-500');
-                    case 'group_house':         return createFaIcon('fas fa-users', 'bg-fuchsia-500'); // For SGH Fläming
-                    case 'coworking':           return createFaIcon('fas fa-laptop-house', 'bg-purple-400'); // For COCONAT
-                    // Food & Drink
-                    case 'restaurant':          return createFaIcon('fas fa-utensils', 'bg-purple-600');
-                    case 'cafe':                return createFaIcon('fas fa-coffee', 'bg-pink-500');
-                    // Shopping & Crafts
-                    case 'shop':                return createFaIcon('fas fa-store', 'bg-cyan-600');
-                    case 'supermarket':         return createFaIcon('fas fa-shopping-cart', 'bg-blue-600');
-                    case 'craft':               return createFaIcon('fas fa-paint-brush', 'bg-lime-600');
-                    case 'farm':                return createFaIcon('fas fa-tractor', 'bg-amber-500');
-                    // Transport & Info
-                    case 'train_station':       return createFaIcon('fas fa-train', 'bg-sky-700');
-                    case 'bus_stop':            return createFaIcon('fas fa-bus', 'bg-sky-500');
-                    case 'tourist_info':        return createFaIcon('fas fa-info-circle', 'bg-teal-500');
-                    // Attractions & Landmarks
-                    case 'church':              return createFaIcon('fas fa-church', 'bg-yellow-700');
-                    case 'castle':              return createFaIcon('fab fa-fort-awesome-alt', 'bg-stone-600');
-                    case 'historic':            return createFaIcon('fas fa-landmark', 'bg-orange-700');
-                    case 'museum':              return createFaIcon('fas fa-landmark', 'bg-amber-700');
-                    case 'windmill':            return createFaIcon('fas fa-wind', 'bg-indigo-400');
-                    case 'viewpoint':           return createFaIcon('fas fa-binoculars', 'bg-indigo-600');
-                    case 'memorial':            return createFaIcon('fas fa-monument', 'bg-slate-500');
-                    case 'geological_feature':  return createFaIcon('fas fa-gem', 'bg-stone-500');
-                    // Leisure & Nature
-                    case 'leisure':             return createFaIcon('fas fa-futbol', 'bg-emerald-500');
-                    case 'nature':              return createFaIcon('fas fa-tree', 'bg-green-700');
-                    case 'library':             return createFaIcon('fas fa-book-open', 'bg-rose-500');
-                    case 'spa':                 return createFaIcon('fas fa-spa', 'bg-cyan-400');
-                    case 'education':           return createFaIcon('fas fa-graduation-cap', 'bg-orange-400');
-                    case 'theater':             return createFaIcon('fas fa-masks-theater', 'bg-red-400');
-                    case 'horseback_riding':    return createFaIcon('fas fa-horse', 'bg-amber-600');
-                    // Facilities
-                    case 'public_toilet':       return createFaIcon('fas fa-restroom', 'bg-gray-500');
-                    // Default
-                    default:                    return createFaIcon('fas fa-map-marker-alt', 'bg-gray-600');
-                }
             }
 
             // --- Function to Add Routes to Map ---
-            function addRoutesToMap(routesData) {
-                walkingLayerGroup.clearLayers();
-                cyclingLayerGroup.clearLayers();
-                routeLayers = []; // Clear the layer array
+            function addRoutesToMap(routes) {
+                // Clear existing route layers
+                routeLayers.forEach(layer => map.removeLayer(layer));
+                routeLayers = [];
 
-                if (!routesData || !routesData.features) return; // Handle empty/invalid data
+                if (!routes || !routes.features) {
+                    console.warn("No routes to display or invalid route data format.");
+                    return;
+                }
 
-                const geoJsonLayer = L.geoJSON(routesData, {
-                    style: function (feature) {
-                        let color = feature.properties.type === 'cycling' ? '#4682B4' : '#ff7800';
-                        let weight = (feature.properties.tags && feature.properties.tags.includes('hiking-trail')) ? 5 : 4; // Make major trails slightly thicker
-                        return { color: color, weight: weight, opacity: 0.7 };
-                    },
-                    onEachFeature: function (feature, layer) {
-                        let props = feature.properties;
-                        let popupContent = `<div class="text-sm">`;
-                        popupContent += `<strong class="text-base block mb-1">${props.name}</strong>`;
-                        popupContent += `Type: ${props.type}<br>`;
-                        popupContent += `Length: ${props.length_km} km<br>`;
-                        if(props.duration_h) popupContent += `Duration: ${props.duration_h} h<br>`;
-                        if (props.difficulty) popupContent += `Difficulty: <span class="capitalize">${props.difficulty}</span><br>`;
-                        if (props.start_point && !props.tags?.includes('long-distance')) popupContent += `Start: <span class="capitalize">${props.start_point.replace('-', ' ')}</span><br>`;
-                        if (props.tags && props.tags.length > 0) popupContent += `Tags: ${props.tags.join(', ')}<br>`;
-                        popupContent += `</div>`;
-                        layer.bindPopup(popupContent);
+                routes.features.forEach(route => {
+                    const routeLayer = L.geoJSON(route, {
+                        style: (feature) => {
+                            let color = '#3388ff'; // Default blue
+                            if (feature.properties.type === 'walking') color = '#ff7800'; // Orange for walking
+                            if (feature.properties.type === 'cycling') color = '#4CAF50'; // Green for cycling
+                            if (feature.properties.difficulty === 'hard') color = '#d9534f'; // Red for hard
+                            return { color: color, weight: 4, opacity: 0.7 };
+                        },
+                        onEachFeature: (feature, layer) => {
+                            // Create popup content
+                            let popupContent = `<b>${feature.properties.name || 'Unnamed Route'}</b>`;
+                            if (feature.properties.length_km) popupContent += `<br>Length: ${feature.properties.length_km} km`;
+                            if (feature.properties.duration_h) popupContent += `<br>Duration: ${feature.properties.duration_h} h`;
+                            if (feature.properties.difficulty) popupContent += `<br>Difficulty: ${feature.properties.difficulty.charAt(0).toUpperCase() + feature.properties.difficulty.slice(1)}`;
+                            if (feature.properties.description) popupContent += `<br><small><em>${feature.properties.description}</em></small>`;
+                            if (feature.properties.tags) popupContent += `<br><small>Tags: ${feature.properties.tags.join(', ')}</small>`;
 
-                        layer.on('click', function (e) {
-                            if (highlightedLayer && highlightedLayer !== layer) {
-                                highlightedLayer.setStyle({ weight: highlightedLayer.defaultWeight || 4, opacity: 0.7 }); // Use stored weight or default
-                                highlightedLayer.bringToBack();
-                            }
-                            if (highlightedLayer !== layer) {
-                                layer.defaultWeight = layer.options.weight; // Store original weight
-                                layer.setStyle({ weight: 6, opacity: 1.0 });
-                                layer.bringToFront();
-                                highlightedLayer = layer;
-                            }
-                            L.DomEvent.stop(e);
-                        });
+                            layer.bindPopup(popupContent);
 
-                        layer.featureData = feature;
-                        routeLayers.push(layer);
-
-                        if (props.type === 'walking') walkingLayerGroup.addLayer(layer);
-                        else if (props.type === 'cycling') cyclingLayerGroup.addLayer(layer);
-                    }
-                });
-
-                map.on('click', function() {
-                    if (highlightedLayer) {
-                        highlightedLayer.setStyle({ weight: highlightedLayer.defaultWeight || 4, opacity: 0.7 });
-                        highlightedLayer = null;
-                    }
-                });
-            }
-
-             // --- Function to Add POIs to Map ---
-            function addPOIsToMap(poisData) {
-                accommodationLayerGroup.clearLayers();
-                amenitiesLayerGroup.clearLayers();
-                poiLayers = []; // Clear the layer array
-
-                if (!poisData || !poisData.features) return; // Handle empty/invalid data
-
-                L.geoJSON(poisData, {
-                    pointToLayer: function (feature, latlng) {
-                       const marker = L.marker(latlng, { icon: getPoiIcon(feature.properties.type) });
-                       return marker;
-                    },
-                    onEachFeature: function (feature, layer) {
-                        let props = feature.properties;
-                        let popupContent = `<div class="text-sm">`;
-                        popupContent += `<strong class="text-base block mb-1">${props.name}</strong>`;
-                        popupContent += `Type: <span class="capitalize">${props.type.replace(/_/g, ' ')}</span><br>`;
-                        if (props.contact_info) {
-                             if (props.contact_info.startsWith('http') || props.contact_info.includes('.') || props.contact_info.includes('@') || props.contact_info.startsWith('Tel:')) {
-                                 let link = props.contact_info;
-                                 if (!link.startsWith('http') && !link.startsWith('mailto:') && !link.startsWith('tel:')) {
-                                     link = link.includes('@') ? `mailto:${link}` : (link.startsWith('Tel:') ? `tel:${link.substring(4).replace(/\s/g,'')}` : `//${link}`);
-                                 }
-                                popupContent += `Info: <a href="${link}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">${props.contact_info}</a><br>`;
-                            } else {
-                                popupContent += `Info: ${props.contact_info}<br>`;
-                            }
+                            // Highlight on hover
+                            layer.on('mouseover', function (e) {
+                                this.setStyle({ weight: 6, opacity: 1.0 });
+                                if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+                                    this.bringToFront();
+                                }
+                            });
+                            layer.on('mouseout', function (e) {
+                                routeLayer.resetStyle(this); // Reset to original style
+                            });
                         }
-                        popupContent += `</div>`;
-                        layer.bindPopup(popupContent);
-
-                        layer.featureData = feature;
-                        poiLayers.push(layer);
-
-                        if (props.category === 'accommodation') accommodationLayerGroup.addLayer(layer);
-                        else if (props.category === 'amenities') amenitiesLayerGroup.addLayer(layer);
-                    }
+                    });
+                    routeLayers.push(routeLayer);
+                    routeLayer.addTo(map);
                 });
+                if (routeLayers.length > 0) {
+                     // Fit map to bounds of all routes if multiple routes, or zoom to single route
+                    const group = new L.featureGroup(routeLayers);
+                    map.fitBounds(group.getBounds().pad(0.1)); // Add some padding
+                } else if (routes.features.length === 0) {
+                    // If no routes match filters, maybe reset to default view or show a message
+                    map.setView([centerLat, centerLng], initialZoom);
+                }
             }
 
 
-            // --- Sidebar Controls & Filtering Logic ---
-            maxLengthSlider.oninput = () => { maxLengthValue.textContent = `${maxLengthSlider.value} km`; };
-            maxDurationSlider.oninput = () => { maxDurationValue.textContent = `${maxDurationSlider.value} h`; };
+            // --- Function to Filter Routes ---
+            function filterAndDisplayRoutes() {
+                showLoading(true);
 
-            // Main filter function
-            function applyFilters() {
-                showLoading();
+                // Simulate async operation if data were fetched
                 setTimeout(() => {
+                    if (!allRoutesData || !allRoutesData.features) {
+                        console.warn("Route data not loaded yet.");
+                        addRoutesToMap({ type: "FeatureCollection", features: [] }); // Display empty map
+                        showLoading(false);
+                        return;
+                    }
+
                     const selectedRouteType = routeTypeSelect.value;
                     const selectedDifficulty = difficultyLevelSelect.value;
                     const maxLength = parseFloat(maxLengthSlider.value);
                     const maxDuration = parseFloat(maxDurationSlider.value);
-                    const selectedStartPointOrRoute = startPointSelect.value;
-                    const selectedCriteria = Array.from(criteriaCheckboxes)
-                                                .filter(cb => cb.checked)
-                                                .map(cb => cb.value);
-                    const searchTerm = searchInput.value.toLowerCase().trim();
+                    const selectedStartPoint = startPointSelect.value;
+                    const searchTerm = searchInput.value.toLowerCase();
+                    const activeCriteria = Array.from(criteriaCheckboxes)
+                                              .filter(cb => cb.checked)
+                                              .map(cb => cb.value);
 
-                    // --- Filter Routes ---
-                    const filteredRouteFeatures = allRoutesData.features.filter(feature => {
-                        const props = feature.properties;
-                        let keep = true;
+                    const filteredRoutes = allRoutesData.features.filter(route => {
+                        const props = route.properties;
+                        let matches = true;
 
-                        if (selectedRouteType !== 'all' && props.type !== selectedRouteType) keep = false;
-                        if (keep && selectedDifficulty !== 'all' && props.difficulty !== selectedDifficulty) keep = false;
-                        if (keep && props.length_km > maxLength) keep = false;
-                        if (keep && props.duration_h && props.duration_h > maxDuration) keep = false;
+                        if (selectedRouteType !== 'all' && props.type !== selectedRouteType) matches = false;
+                        if (selectedDifficulty !== 'all' && props.difficulty !== selectedDifficulty) matches = false;
+                        if (props.length_km && props.length_km > maxLength) matches = false;
+                        if (props.duration_h && props.duration_h > maxDuration) matches = false;
 
-                        if (keep && selectedStartPointOrRoute !== 'all') {
-                            const routeNameIdentifier = props.name.toLowerCase().replace(/[\s\/&]+/g, '-'); // Create identifier from name
-                            if (props.start_point !== selectedStartPointOrRoute && routeNameIdentifier !== selectedStartPointOrRoute) {
-                                keep = false;
+                        if (selectedStartPoint !== 'all') {
+                            // Check if the start_point matches or if the route name itself matches (for named routes like Burgenwanderweg)
+                            if (props.start_point !== selectedStartPoint && props.name.toLowerCase().indexOf(selectedStartPoint.replace(/-/g, " ")) === -1) {
+                                matches = false;
                             }
                         }
 
-                        if (keep && selectedCriteria.length > 0) {
-                            const routeTags = props.tags || [];
-                            const requiresPublicTransport = selectedCriteria.includes('public_transport_accessible');
-                            if (requiresPublicTransport && !props.public_transport_accessible) keep = false;
 
-                            const otherCriteria = selectedCriteria.filter(crit => crit !== 'public_transport_accessible');
-                            if (keep && otherCriteria.length > 0) {
-                                if (!otherCriteria.every(crit => routeTags.includes(crit))) keep = false;
-                            }
-                         }
-                        if (keep && searchTerm && !props.name.toLowerCase().includes(searchTerm)) keep = false;
-
-                        return keep;
-                    });
-
-                    // --- Filter POIs ---
-                     const filteredPOIFeatures = allPOIsData.features.filter(feature => {
-                        const props = feature.properties;
-                        let keep = true;
                         if (searchTerm) {
-                            const nameMatch = props.name.toLowerCase().includes(searchTerm);
-                            const typeMatch = props.type.toLowerCase().replace(/_/g, ' ').includes(searchTerm);
-                            if (!nameMatch && !typeMatch) keep = false;
+                            const nameMatch = props.name && props.name.toLowerCase().includes(searchTerm);
+                            const tagsMatch = props.tags && props.tags.some(tag => tag.toLowerCase().includes(searchTerm));
+                            const descriptionMatch = props.description && props.description.toLowerCase().includes(searchTerm);
+                            if (!nameMatch && !tagsMatch && !descriptionMatch) matches = false;
                         }
-                        return keep;
+
+                        if (activeCriteria.length > 0) {
+                            if (!props.tags || !activeCriteria.every(crit => props.tags.includes(crit))) {
+                                matches = false;
+                            }
+                        }
+                        return matches;
                     });
 
-                    // --- Update Map Layers ---
-                    addRoutesToMap({ type: "FeatureCollection", features: filteredRouteFeatures });
-                    addPOIsToMap({ type: "FeatureCollection", features: filteredPOIFeatures });
-                    togglePoiLayersVisibility();
-
-                    if (highlightedLayer) {
-                        highlightedLayer.setStyle({ weight: highlightedLayer.defaultWeight || 4, opacity: 0.7 });
-                        highlightedLayer = null;
-                    }
-                    hideLoading();
-                }, 150);
+                    addRoutesToMap({ type: "FeatureCollection", features: filteredRoutes });
+                    showLoading(false);
+                }, 200); // Short delay to simulate loading and allow UI to update
             }
 
-            // Reset filters function
-            function resetFilters() {
-                showLoading();
+            // --- Function to Add POIs to Map ---
+            function addPOIsToMap(pois) {
+                // Clear existing POI layers first by group
+                Object.values(poiLayers).forEach(group => map.removeLayer(group));
+                poiLayers = {}; // Reset the poiLayers object
+
+                if (!pois || !pois.features) {
+                    console.warn("No POIs to display or invalid POI data format.");
+                    return;
+                }
+
+                pois.features.forEach(poi => {
+                    const category = poi.properties.category || 'general';
+                    const iconClass = poi.properties.icon || 'fa-map-marker-alt'; // Default icon
+                    const iconColor = poi.properties.iconColor || '#007bff'; // Default color (blue)
+
+                    if (!poiLayers[category]) {
+                        poiLayers[category] = L.layerGroup(); // Create a new layer group for the category if it doesn't exist
+                    }
+
+                    const marker = L.marker([poi.geometry.coordinates[1], poi.geometry.coordinates[0]], { // Lat, Lng for Leaflet
+                        icon: createCustomIcon(iconClass, iconColor)
+                    });
+
+                    let popupContent = `<b>${poi.properties.name || 'Point of Interest'}</b>`;
+                    if (poi.properties.description) popupContent += `<br>${poi.properties.description}`;
+                    if (poi.properties.address) popupContent += `<br><small>${poi.properties.address}</small>`;
+                    marker.bindPopup(popupContent);
+
+                    poiLayers[category].addLayer(marker); // Add marker to its category group
+                });
+
+                // Add all initially visible POI groups to the map (based on checkbox state)
+                poiToggleCheckboxes.forEach(checkbox => {
+                    const layerGroupName = checkbox.dataset.layerGroup;
+                    if (checkbox.checked && poiLayers[layerGroupName]) {
+                        poiLayers[layerGroupName].addTo(map);
+                    }
+                });
+            }
+
+            // --- Function to Toggle POI Layer Visibility ---
+            function togglePOILayer(layerGroupName, isVisible) {
+                if (poiLayers[layerGroupName]) {
+                    if (isVisible) {
+                        poiLayers[layerGroupName].addTo(map);
+                    } else {
+                        map.removeLayer(poiLayers[layerGroupName]);
+                    }
+                }
+            }
+
+
+            // --- Function to Fetch Weather Data (Hoher Fläming - using Bad Belzig as reference) ---
+            async function fetchWeather() {
+                // Using Open-Meteo API (free, no API key required for basic use)
+                // Coordinates for Bad Belzig: lat 52.14, lon 12.59
+                const weatherApiUrl = `https://api.open-meteo.com/v1/forecast?latitude=52.14&longitude=12.59&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,rain,showers,snowfall,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m&timezone=Europe%2FBerlin`;
+
+                try {
+                    const response = await fetch(weatherApiUrl);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const data = await response.json();
+
+                    if (data && data.current) {
+                        const current = data.current;
+                        const weatherDescription = getWeatherDescription(current.weather_code);
+                        const weatherIcon = getWeatherIcon(current.weather_code, current.is_day);
+
+                        weatherWidget.innerHTML = `
+                            <div class="flex items-center">
+                                <i class="fas ${weatherIcon} fa-2x mr-3 text-yellow-400"></i>
+                                <div>
+                                    <p class="font-semibold">${current.temperature_2m}°C (Feels like ${current.apparent_temperature}°C)</p>
+                                    <p>${weatherDescription}</p>
+                                    <p>Humidity: ${current.relative_humidity_2m}%</p>
+                                    <p>Wind: ${current.wind_speed_10m} km/h</p>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        weatherWidget.innerHTML = '<p><i class="fas fa-exclamation-circle mr-1"></i> Weather data unavailable.</p>';
+                    }
+                } catch (error) {
+                    console.error("Error fetching weather:", error);
+                    weatherWidget.innerHTML = '<p><i class="fas fa-exclamation-circle mr-1"></i> Could not load weather.</p>';
+                }
+            }
+
+            function getWeatherIcon(code, isDay = 1) {
+                // Simplified WMO Weather interpretation codes to Font Awesome icons
+                if (code === 0) return isDay ? 'fa-sun' : 'fa-moon'; // Clear sky
+                if (code === 1 || code === 2 || code === 3) return isDay ? 'fa-cloud-sun' : 'fa-cloud-moon'; // Mainly clear, partly cloudy, overcast
+                if (code >= 45 && code <= 48) return 'fa-smog'; // Fog
+                if (code >= 51 && code <= 57) return 'fa-cloud-rain'; // Drizzle
+                if (code >= 61 && code <= 67) return 'fa-cloud-showers-heavy'; // Rain
+                if (code >= 71 && code <= 77) return 'fa-snowflake'; // Snow fall
+                if (code >= 80 && code <= 82) return 'fa-cloud-showers-heavy'; // Rain showers
+                if (code >= 85 && code <= 86) return 'fa-snowflake'; // Snow showers
+                if (code >= 95 && code <= 99) return 'fa-bolt'; // Thunderstorm
+                return 'fa-question-circle'; // Default
+            }
+
+            function getWeatherDescription(code) {
+                // WMO Weather interpretation codes
+                const descriptions = {
+                    0: 'Clear sky', 1: 'Mainly clear', 2: 'Partly cloudy', 3: 'Overcast',
+                    45: 'Fog', 48: 'Depositing rime fog',
+                    51: 'Light drizzle', 53: 'Moderate drizzle', 55: 'Dense drizzle',
+                    56: 'Light freezing drizzle', 57: 'Dense freezing drizzle',
+                    61: 'Slight rain', 63: 'Moderate rain', 65: 'Heavy rain',
+                    66: 'Light freezing rain', 67: 'Heavy freezing rain',
+                    71: 'Slight snow fall', 73: 'Moderate snow fall', 75: 'Heavy snow fall',
+                    77: 'Snow grains',
+                    80: 'Slight rain showers', 81: 'Moderate rain showers', 82: 'Violent rain showers',
+                    85: 'Slight snow showers', 86: 'Heavy snow showers',
+                    95: 'Thunderstorm', 96: 'Thunderstorm with slight hail', 99: 'Thunderstorm with heavy hail'
+                };
+                return descriptions[code] || 'Unknown weather';
+            }
+
+
+            // --- Event Listeners ---
+            // Slider value updates
+            maxLengthSlider.addEventListener('input', (e) => {
+                maxLengthValue.textContent = `${e.target.value} km`;
+            });
+            maxDurationSlider.addEventListener('input', (e) => {
+                maxDurationValue.textContent = `${e.target.value} h`;
+            });
+
+            // Apply and Reset Filters
+            applyFiltersBtn.addEventListener('click', filterAndDisplayRoutes);
+            resetFiltersBtn.addEventListener('click', () => {
                 routeTypeSelect.value = 'all';
                 difficultyLevelSelect.value = 'all';
                 maxLengthSlider.value = 150;
@@ -742,124 +657,92 @@
                 maxDurationSlider.value = 50;
                 maxDurationValue.textContent = '50 h';
                 startPointSelect.value = 'all';
-                criteriaCheckboxes.forEach(cb => cb.checked = false);
                 searchInput.value = '';
-                poiToggleCheckboxes.forEach(cb => cb.checked = true);
+                criteriaCheckboxes.forEach(cb => cb.checked = false);
+                filterAndDisplayRoutes(); // Re-apply to show all routes
+                 // Reset POI toggles to checked and re-apply visibility
+                poiToggleCheckboxes.forEach(checkbox => {
+                    checkbox.checked = true;
+                    if (allPOIsData) { // Ensure POI data is loaded before toggling
+                         togglePOILayer(checkbox.dataset.layerGroup, true);
+                    }
+                });
+            });
 
-                addRoutesToMap(allRoutesData);
-                addPOIsToMap(allPOIsData);
-                togglePoiLayersVisibility();
-
-                 if (highlightedLayer) {
-                    highlightedLayer.setStyle({ weight: highlightedLayer.defaultWeight || 4, opacity: 0.7 });
-                    highlightedLayer = null;
-                }
-                hideLoading();
-            }
-
-            // Function to toggle POI Layer Group visibility based on checkboxes
-            function togglePoiLayersVisibility() {
-                 poiToggleCheckboxes.forEach(checkbox => {
-                    const layerGroupName = checkbox.dataset.layerGroup;
-                    const layerGroup = window[layerGroupName + 'LayerGroup'];
-                    if (layerGroup) {
-                        if (checkbox.checked) { if (!map.hasLayer(layerGroup)) map.addLayer(layerGroup); }
-                        else { if (map.hasLayer(layerGroup)) map.removeLayer(layerGroup); }
-                    } else { console.warn(`Layer group for '${layerGroupName}' not found.`); }
-                 });
-            }
-
-            // --- Event Listeners ---
-            applyFiltersBtn.addEventListener('click', applyFilters);
-            resetFiltersBtn.addEventListener('click', resetFilters);
-            searchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') applyFilters(); });
-            poiToggleCheckboxes.forEach(checkbox => checkbox.addEventListener('change', togglePoiLayersVisibility));
-
-            // --- Weather Widget ---
-            function fetchWeather() {
-                weatherWidget.innerHTML = `<p><i class="fas fa-spinner fa-spin mr-1"></i> Loading weather...</p>`;
-                const apiKey = 'YOUR_OPENWEATHERMAP_API_KEY'; // <-- !!! REPLACE THIS !!!
-                if (!apiKey || apiKey === 'YOUR_OPENWEATHERMAP_API_KEY') {
-                     console.warn("OpenWeatherMap API key is missing or placeholder.");
-                      weatherWidget.innerHTML = `
-                            <p><i class="fas fa-thermometer-half mr-1"></i> Current: 18°C</p>
-                            <p><i class="fas fa-cloud-sun mr-1"></i> Condition: Partly Cloudy</p>
-                            <p class="text-xs text-gray-400">(Weather API key needed)</p>
-                         `;
-                     return; // Stop if no key
-                }
-
-                const lat = 52.14; // Bad Belzig coordinates
-                const lon = 12.58;
-                const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric&lang=en`;
-
-                fetch(url)
-                    .then(response => {
-                        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                        return response.json();
-                    })
-                    .then(data => {
-                        const temp = Math.round(data.main.temp);
-                        const description = data.weather[0].description;
-                        const iconCode = data.weather[0].icon;
-                        const weatherIconClass = mapWeatherIcon(iconCode);
-                        weatherWidget.innerHTML = `
-                            <p><i class="fas fa-thermometer-half mr-1"></i> Current: ${temp}°C</p>
-                            <p><i class="${weatherIconClass} mr-1"></i> Condition: <span class="capitalize">${description}</span></p>
-                            `;
-                    })
-                    .catch(error => {
-                        console.error('Error fetching weather:', error);
-                        weatherWidget.innerHTML = `
-                            <p><i class="fas fa-thermometer-half mr-1"></i> Current: 18°C</p>
-                            <p><i class="fas fa-cloud-sun mr-1"></i> Condition: Partly Cloudy</p>
-                            <p class="text-xs text-gray-400">(Weather API error)</p>
-                         `;
-                    });
-            }
-             // Helper to map OpenWeatherMap icons
-             function mapWeatherIcon(iconCode) {
-                 const mapping = {
-                     '01d': 'fas fa-sun', '01n': 'fas fa-moon', '02d': 'fas fa-cloud-sun', '02n': 'fas fa-cloud-moon',
-                     '03d': 'fas fa-cloud', '03n': 'fas fa-cloud', '04d': 'fas fa-cloud-meatball', '04n': 'fas fa-cloud-meatball',
-                     '09d': 'fas fa-cloud-showers-heavy', '09n': 'fas fa-cloud-showers-heavy', '10d': 'fas fa-cloud-sun-rain',
-                     '10n': 'fas fa-cloud-moon-rain', '11d': 'fas fa-poo-storm', '11n': 'fas fa-poo-storm',
-                     '13d': 'fas fa-snowflake', '13n': 'fas fa-snowflake', '50d': 'fas fa-smog', '50n': 'fas fa-smog'
-                 };
-                 return mapping[iconCode] || 'fas fa-question-circle';
-             }
-
-            // --- Sidebar Responsive Toggle Logic ---
-            sidebarToggle.addEventListener('click', (e) => { e.stopPropagation(); sidebar.classList.remove('translate-x-full'); });
-            sidebarClose.addEventListener('click', () => { sidebar.classList.add('translate-x-full'); });
-            document.addEventListener('click', (event) => {
-                if (!sidebar.contains(event.target) && !sidebarToggle.contains(event.target) && !sidebar.classList.contains('translate-x-full') && window.innerWidth < 768) {
-                    sidebar.classList.add('translate-x-full');
+            // Search input - filter on enter or slight delay after typing
+            let searchTimeout;
+            searchInput.addEventListener('keyup', (event) => {
+                clearTimeout(searchTimeout);
+                if (event.key === 'Enter') {
+                    filterAndDisplayRoutes();
+                } else {
+                    searchTimeout = setTimeout(filterAndDisplayRoutes, 500); // Auto-apply after 500ms
                 }
             });
 
-            // --- Loading Indicator Functions ---
-            function showLoading() { loadingIndicator.style.display = 'flex'; }
-            function hideLoading() { loadingIndicator.style.display = 'none'; }
+            // POI Toggle Checkboxes
+            poiToggleCheckboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', (event) => {
+                    if (allPOIsData) { // Ensure POI data is loaded before toggling
+                        togglePOILayer(event.target.dataset.layerGroup, event.target.checked);
+                    } else if (event.target.checked) {
+                        // If data isn't loaded yet but user checks it, make sure it loads if/when data arrives
+                        // This case is mostly handled by addPOIsToMap checking current checkbox state
+                        console.log(`POI layer ${event.target.dataset.layerGroup} will be shown when data loads.`);
+                    }
+                });
+            });
 
-            // --- Initial Data Load ---
-            function loadInitialData() {
-                showLoading();
-                allRoutesData = placeholderRoutes;
-                allPOIsData = placeholderPOIs;
+
+            // Sidebar toggle for mobile
+            sidebarToggle.addEventListener('click', () => {
+                sidebar.classList.remove('translate-x-full');
+                sidebar.classList.add('translate-x-0');
+            });
+            sidebarClose.addEventListener('click', () => {
+                sidebar.classList.remove('translate-x-0');
+                sidebar.classList.add('translate-x-full');
+            });
+
+            // --- Initial Data Load and Map Setup ---
+            function initializeApp() {
+                showLoading(true);
+                // Simulate fetching route data
+                // In a real app, this would be an API call: fetch('/api/routes').then(res => res.json()).then(data => { ... });
                 setTimeout(() => {
-                    addRoutesToMap(allRoutesData);
+                    allRoutesData = placeholderRoutes; // Use placeholder data
+                    filterAndDisplayRoutes(); // Display initial set of routes (all or filtered by default)
+                    // showLoading(false); // Loading will be hidden by filterAndDisplayRoutes
+                }, 500); // Simulate network delay
+
+                // Simulate fetching POI data
+                // In a real app: fetch('/api/pois').then(...)
+                setTimeout(() => {
+                    // Define some placeholder POIs
+                    allPOIsData = {
+                        "type": "FeatureCollection",
+                        "features": [
+                            { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.587, 52.142] }, "properties": { "name": "Tourist Information Bad Belzig", "category": "amenities", "icon": "fa-info-circle", "iconColor": "#007bff", "description": "Official tourist info center." } },
+                            { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.592, 52.145] }, "properties": { "name": "Hotel Burg Eisenhardt", "category": "accommodation", "icon": "fa-bed", "iconColor": "#5cb85c", "description": "Hotel located at Eisenhardt Castle." } },
+                            { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.305, 52.137] }, "properties": { "name": "Wiesenburg Castle Park", "category": "amenities", "icon": "fa-tree", "iconColor": "#f0ad4e", "description": "Historic park, good for walks." } },
+                            { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.433, 52.062] }, "properties": { "name": "Rabenstein Castle", "category": "amenities", "icon": "fa-chess-rook", "iconColor": "#d9534f", "description": "Medieval castle with tavern." } },
+                            { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.585, 52.140] }, "properties": { "name": "SteinTherme Bad Belzig", "category": "amenities", "icon": "fa-hot-tub", "iconColor": "#5bc0de", "description": "Thermal spa and wellness center." } },
+                            { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.77, 52.18] }, "properties": { "name": "Art Installation 'Der Wanderer'", "category": "amenities", "icon": "fa-palette", "iconColor": "#6f42c1", "description": "Part of the Kunstwanderweg." } }
+                        ]
+                    };
                     addPOIsToMap(allPOIsData);
-                    fetchWeather();
-                    hideLoading();
-                }, 500);
+                    // Ensure loading indicator is hidden if all data is processed
+                    if (!loadingIndicator.style.display || loadingIndicator.style.display !== 'none') {
+                         showLoading(false); // Hide if still visible after route loading
+                    }
+                }, 800); // Simulate slightly longer delay for POIs
+
+                fetchWeather(); // Fetch weather data
             }
 
-            // --- Start Application ---
-            loadInitialData();
-
+            initializeApp(); // Start the application
         });
     </script>
-
 </body>
 </html>
+
