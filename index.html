@@ -2,747 +2,574 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Map - Hoher Fläming</title>
-
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-          crossorigin=""/>
-
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
-          integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
-          crossorigin="anonymous" referrerpolicy="no-referrer" />
-
-    <script src="https://cdn.tailwindcss.com"></script>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Hoher Fläming POI Explorer (Major Upgrade)</title>
+    <!-- Tone.js for audio -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
     <style>
-        /* Ensure map fills its container */
-        #map {
-            height: 100%;
-            width: 100%;
-            z-index: 10; /* Ensure map is behind sidebar toggle */
+        /* Basic page styling */
+        html, body {
+            margin: 0; padding: 0; overflow: hidden;
+            height: 100%; width: 100%;
+            background-color: #2c2c2c;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            position: relative;
         }
 
-        /* Custom scrollbar for sidebar */
-        .sidebar-scroll::-webkit-scrollbar {
-            width: 6px;
+        /* Map Container */
+        #map-container {
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%;
+            overflow: scroll; cursor: grab;
+            background-color: #555;
+            transition: opacity 0.5s ease-in-out;
+            -webkit-overflow-scrolling: touch;
         }
-        .sidebar-scroll::-webkit-scrollbar-track {
-            background: #374151; /* gray-700 */
-            border-radius: 10px;
-        }
-        .sidebar-scroll::-webkit-scrollbar-thumb {
-            background: #6b7280; /* gray-500 */
-            border-radius: 10px;
-        }
-        .sidebar-scroll::-webkit-scrollbar-thumb:hover {
-            background: #9ca3af; /* gray-400 */
-        }
+        #map-container:active { cursor: grabbing; }
 
-        /* Style for highlighted routes */
-        .highlighted-route {
-            stroke-width: 6;
-            stroke-opacity: 1.0;
-            filter: brightness(1.2); /* Make highlight more visible */
-        }
+        /* Inner Map Content */
+        #map-content { position: relative; width: 2048px; height: 1448px; }
 
-        /* Loading indicator style */
-        #loading-indicator {
+        /* Map Image */
+        #map-image { display: block; width: 100%; height: 100%; opacity: 1; transition: opacity 0.5s; pointer-events: none; }
+        #map-image.loading { opacity: 0; }
+        #map-image.error { opacity: 0.2; }
+
+        /* Helicopter Container (for helicopter and shadow) */
+        #helicopter-container {
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: rgba(255, 255, 255, 0.9);
-            padding: 15px 25px;
-            border-radius: 8px;
-            font-size: 1.1em;
-            z-index: 1000; /* Ensure it's above map but below modals if any */
-            display: none; /* Hidden by default */
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            width: 60px; height: 60px;
+            transform-origin: center top; /* Origin at nose */
+            z-index: 10;
+            pointer-events: none;
         }
 
-        /* Sidebar toggle button for mobile */
-        #sidebar-toggle {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            z-index: 400; /* Above map, below sidebar */
-        }
-
-        /* Sidebar transition */
-        #sidebar {
-            transition: transform 0.3s ease-in-out;
-        }
-
-        /* Leaflet Font Awesome Icon Styling */
-        .leaflet-fa-icon {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            border-radius: 50%;
-            color: white; /* Icon color */
+        /* Helicopter Image */
+        #helicopter {
+            position: absolute;
+            width: 100%; height: 100%;
+            /* Using a placeholder image - replace with your actual helicopter image if available */
+            /* For example: content: url('Heli Fläming/helicopter.png'); */
+            font-size: 60px; /* Fallback emoji */
+            line-height: 60px;
             text-align: center;
-            line-height: 24px; /* Adjust based on icon size */
-            font-size: 14px; /* Adjust icon size */
-            box-shadow: 0 1px 3px rgba(0,0,0,0.4);
-            border: 1px solid rgba(0,0,0,0.2);
+            transition: transform 0.05s linear;
         }
-        /* Popup adjustments */
-        .leaflet-popup-content-wrapper {
-            border-radius: 8px;
+
+        /* Helicopter Shadow */
+        #helicopter-shadow {
+            position: absolute;
+            width: 80%;
+            height: 30%;
+            background-color: rgba(0,0,0,0.25);
+            border-radius: 50%;
+            top: 110%; /* Position below the helicopter */
+            left: 10%;
+            filter: blur(4px);
+            z-index: -1;
         }
-        .leaflet-popup-content {
-            margin: 12px;
-            font-size: 13px;
-            line-height: 1.5;
+
+        /* POI Marker styling */
+        .poi-marker {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background-color: hsla(50, 100%, 60%, 0.8); /* Bright yellow */
+            border: 2px solid rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+            transform: translate(-50%, -50%); /* Center on coordinate */
+            box-shadow: 0 0 10px hsla(50, 100%, 70%, 0.7);
+            z-index: 5;
+            transition: background-color 0.5s, box-shadow 0.5s;
         }
-        .leaflet-popup-content b, .leaflet-popup-content strong {
-            font-weight: 600;
-            color: #374151; /* gray-700 */
+        .poi-marker.visited {
+            background-color: hsla(120, 70%, 50%, 0.8); /* Green */
+            box-shadow: 0 0 12px hsla(120, 70%, 60%, 0.8);
         }
+        .poi-marker .poi-number {
+             position: absolute;
+             top: 50%;
+             left: 50%;
+             transform: translate(-50%, -50%);
+             color: black;
+             font-size: 10px;
+             font-weight: bold;
+        }
+
+
+        /* Top Info */
+        #info {
+            position: fixed; top: 8px; left: 8px;
+            background-color: rgba(0, 0, 0, 0.75); color: #fff;
+            padding: 6px 10px; border-radius: 4px;
+            font-size: 12px; z-index: 30; pointer-events: none;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+        #keyboard-controls { display: none; }
+        @media (min-width: 768px) { #keyboard-controls { display: block; } }
+
+        /* Debug Info */
+        #debug-info {
+            position: fixed; bottom: 150px;
+            left: 8px; background-color: rgba(200, 0, 0, 0.8); color: #fff;
+            padding: 5px 8px; border-radius: 3px; font-size: 10px;
+            z-index: 30; display: none; pointer-events: none;
+        }
+
+        /* Land Indicator */
+        #land-indicator {
+            position: fixed; bottom: 90px;
+            left: 50%; transform: translateX(-50%);
+            background-color: rgba(255, 193, 7, 0.9); color: #000;
+            padding: 6px 12px; border-radius: 4px; font-size: 14px;
+            font-weight: bold; z-index: 20; display: none;
+            text-align: center; pointer-events: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        /* Info Panel & Completion Panel */
+        .modal-panel {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.9); display: flex;
+            justify-content: center; align-items: center;
+            opacity: 0; visibility: hidden;
+            transition: opacity 0.5s ease-in-out, visibility 0s 0.5s;
+            z-index: 40; pointer-events: none;
+        }
+        .modal-panel.visible { opacity: 1; visibility: visible; transition-delay: 0s; pointer-events: auto; }
+
+        .modal-content {
+            background-color: #e0e0e0; color: #333; padding: 25px; border-radius: 6px;
+            width: 90%; max-height: 85%; overflow-y: auto;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4); position: relative;
+            border: 1px solid #bbb;
+        }
+        .modal-content h2 { margin-top: 0; color: #111; border-bottom: 1px solid #aaa; padding-bottom: 10px; font-size: 1.3em; }
+        .modal-content p { font-size: 1em; line-height: 1.5; }
+
+        .modal-button {
+            display: block; margin: 20px auto 0; padding: 12px 25px;
+            font-size: 16px; font-weight: bold; color: #fff;
+            background: linear-gradient(to bottom, #6c757d, #495057);
+            border: 1px solid #888; border-radius: 5px; cursor: pointer;
+            transition: background 0.2s, box-shadow 0.2s;
+            box-shadow: 0 2px 3px rgba(0,0,0,0.2);
+        }
+        .modal-button:hover { background: linear-gradient(to bottom, #80888f, #5a6268); }
+        .modal-button:active { box-shadow: inset 0 1px 3px rgba(0,0,0,0.3); }
+
+        /* --- Joystick Styling --- */
+        #joystick-container {
+            position: fixed;
+            bottom: 20px; left: 20px; right: auto;
+            width: 120px; height: 120px;
+            z-index: 35; pointer-events: none;
+        }
+        #joystick-base {
+            position: absolute; width: 100%; height: 100%; border-radius: 50%;
+            background: rgba(80, 80, 80, 0.5); border: 2px solid rgba(200, 200, 200, 0.6);
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.3); pointer-events: auto;
+        }
+        #joystick-handle {
+            position: absolute; width: 60px; height: 60px; border-radius: 50%;
+            background: linear-gradient(to bottom, #5a5a5a, #333); border: 1px solid #777;
+            box-shadow: 0 3px 5px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.1);
+            top: 50%; left: 50%; transform: translate(-50%, -50%);
+            pointer-events: auto; cursor: grab; touch-action: none;
+        }
+         #joystick-handle:active {
+             cursor: grabbing; background: linear-gradient(to top, #5a5a5a, #333);
+             box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+         }
+
+        /* Land Button Styling */
+        #land-button {
+            position: fixed;
+            bottom: 20px; right: 20px; left: auto;
+            transform: none;
+            width: 70px; height: 50px; border-radius: 6px;
+            font-size: 16px; font-weight: bold; text-transform: uppercase;
+            background: linear-gradient(to bottom, #ffcc00, #cca300); color: #212529;
+            border: 1px solid #ffeb99;
+            box-shadow: 0 0 0 3px #333, 0 0 0 5px #555, 4px 4px 8px rgba(0,0,0,0.4);
+            display: none; justify-content: center; align-items: center;
+            z-index: 36; pointer-events: auto; user-select: none;
+            -webkit-user-select: none; touch-action: manipulation;
+            transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.08s ease;
+        }
+         #land-button:active {
+             background: linear-gradient(to top, #ffcc00, #cca300);
+             box-shadow: 0 0 0 3px #333, 0 0 0 5px #555, inset 0 3px 5px rgba(0, 0, 0, 0.3);
+             transform: scale(0.95);
+             color: #000;
+         }
+
+        /* --- POI Checklist Styling --- */
+        #checklist-toggle {
+            position: fixed;
+            top: 8px;
+            right: 8px;
+            width: 40px; height: 40px;
+            background: rgba(80, 80, 80, 0.7);
+            border: 1px solid #aaa;
+            color: #fff;
+            border-radius: 5px;
+            font-size: 24px;
+            z-index: 38;
+            cursor: pointer;
+        }
+        #poi-checklist-panel {
+            position: fixed;
+            top: 60px;
+            right: 8px;
+            width: 220px;
+            max-height: calc(100vh - 80px);
+            background: rgba(40,40,40,0.95);
+            border: 1px solid #888;
+            border-radius: 5px;
+            color: #fff;
+            padding: 10px;
+            z-index: 37;
+            overflow-y: auto;
+            transform: translateX(120%);
+            transition: transform 0.4s ease-in-out;
+        }
+        #poi-checklist-panel.visible {
+            transform: translateX(0);
+        }
+        #poi-checklist-panel h3 { margin-top: 0; text-align: center; }
+        #poi-list { list-style: none; padding: 0; margin: 0; font-size: 14px; }
+        #poi-list li { padding: 4px 0; border-bottom: 1px solid #555; }
+        #poi-list li.visited { color: #8cff8c; text-decoration: line-through; }
+
+        /* --- Landscape Orientation Styles --- */
+        @media (orientation: landscape) {
+            #joystick-container { left: auto; right: 20px; }
+            #land-button { bottom: 150px; right: 20px; left: auto; transform: none; }
+            #debug-info { bottom: 20px; left: 150px; }
+        }
+
     </style>
 </head>
-<body class="font-sans antialiased bg-gray-100 overflow-hidden"> {/* Prevent body scroll */}
+<body>
+    <!-- UI Elements -->
+    <div id="info">
+        <span id="keyboard-controls">Controls: Arrows (Turn/Thrust), L (Land)<br></span>
+        <span id="land-prompt" style="color: #ffc107; font-weight: bold; display: none;">Press 'L' or Land Button</span><br>
+        Speed: <span id="speed-info">0</span> | Angle: <span id="angle-info">0</span>&deg;
+    </div>
+    <div id="debug-info">Map Image Error! Check console (F12).</div>
+    <div id="land-indicator">Nearby: <span id="poi-name">POI</span><br>Press 'L' or Land Button</div>
 
-    <div class="flex flex-col md:flex-row h-screen relative">
-
-        <div id="map-container" class="flex-grow h-1/2 md:h-full relative">
-            <div id="map"></div>
-            <div id="loading-indicator" class="text-gray-700 shadow-md flex items-center">
-                <i class="fas fa-spinner fa-spin mr-2"></i>Loading...
+    <!-- Map Container -->
+    <div id="map-container">
+        <div id="map-content">
+            <!-- POI Markers will be injected here by JS -->
+            <img id="map-image" class="loading" src="Heli Fläming/hoher_flaeming_map.jpg" alt="Hoher Fläming Map">
+            <!-- Helicopter and its shadow -->
+            <div id="helicopter-container">
+                <div id="helicopter">🚁</div>
+                <div id="helicopter-shadow"></div>
             </div>
-             <button id="sidebar-toggle" class="md:hidden bg-white p-2 rounded-md shadow-md text-gray-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
-                </svg>
-            </button>
         </div>
-
-        <div id="sidebar" class="w-full md:w-80 lg:w-96 bg-gray-800 text-white p-4 shadow-lg overflow-y-auto sidebar-scroll h-1/2 md:h-full fixed md:relative right-0 top-0 transform translate-x-full md:translate-x-0 z-50">
-             <button id="sidebar-close" class="md:hidden absolute top-2 right-2 text-gray-300 hover:text-white p-1">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-            </button>
-
-            <h2 class="text-xl font-semibold mb-4 border-b border-gray-600 pb-2">Filter & Search</h2>
-
-            <div class="mb-4">
-                <label for="search-input" class="block text-sm font-medium text-gray-300 mb-1">Search</label>
-                <input type="text" id="search-input" placeholder="Search locations, routes..." class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400">
-            </div>
-
-            <div class="mb-4 p-3 bg-gray-700 rounded-md">
-                <h3 class="text-lg font-medium mb-2">Routes</h3>
-
-                <div class="mb-3">
-                    <label for="route-type" class="block text-sm font-medium text-gray-300 mb-1">Type</label>
-                    <select id="route-type" class="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-white">
-                        <option value="all">All Routes</option>
-                        <option value="walking">Walking</option>
-                        <option value="cycling">Cycling</option>
-                    </select>
-                </div>
-
-                <div class="mb-3">
-                    <label for="difficulty-level" class="block text-sm font-medium text-gray-300 mb-1">Difficulty</label>
-                    <select id="difficulty-level" class="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-white">
-                        <option value="all">Any Difficulty</option>
-                        <option value="easy">Easy</option>
-                        <option value="medium">Medium</option>
-                        <option value="hard">Hard</option>
-                    </select>
-                </div>
-
-                <div class="mb-3">
-                    <label for="max-length" class="block text-sm font-medium text-gray-300 mb-1">Max Length (km)</label>
-                    <input type="range" id="max-length" min="0" max="150" value="150" step="5" class="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer range-lg accent-blue-500">
-                    <span id="max-length-value" class="text-sm text-gray-400 float-right">150 km</span>
-                </div>
-
-                <div class="mb-3">
-                    <label for="max-duration" class="block text-sm font-medium text-gray-300 mb-1">Max Duration (h)</label>
-                    <input type="range" id="max-duration" min="0" max="50" value="50" step="1" class="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer range-lg accent-blue-500">
-                     <span id="max-duration-value" class="text-sm text-gray-400 float-right">50 h</span>
-                </div>
-
-                <div class="mb-3">
-                    <label for="start-point" class="block text-sm font-medium text-gray-300 mb-1">Starting Point / Named Route</label>
-                    <select id="start-point" class="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-white">
-                        <option value="all">Any Start Point</option>
-                        <option value="bad-belzig">Bad Belzig</option>
-                        <option value="wiesenburg">Wiesenburg</option>
-                        <option value="niemegk">Niemegk</option>
-                        <option value="raben">Raben</option>
-                        <option value="burgenwanderweg">Burgenwanderweg</option>
-                        <option value="kunstwanderweg">Kunstwanderweg</option>
-                    </select>
-                </div>
-
-                 <div class="mb-3">
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Criteria</label>
-                    <div class="space-y-1 text-sm">
-                        <div class="flex items-center">
-                            <input id="criteria-public-transport" name="criteria-public-transport" type="checkbox" value="public_transport_accessible" class="h-4 w-4 text-blue-600 bg-gray-600 border-gray-500 rounded focus:ring-blue-500 filter-checkbox">
-                            <label for="criteria-public-transport" class="ml-2 block text-gray-300">Accessible by Public Transport</label>
-                        </div>
-                         <div class="flex items-center">
-                            <input id="criteria-family-friendly" name="criteria-family-friendly" type="checkbox" value="family-friendly" class="h-4 w-4 text-blue-600 bg-gray-600 border-gray-500 rounded focus:ring-blue-500 filter-checkbox">
-                            <label for="criteria-family-friendly" class="ml-2 block text-gray-300">Family-Friendly</label>
-                        </div>
-                         <div class="flex items-center">
-                            <input id="criteria-stroller-friendly" name="criteria-stroller-friendly" type="checkbox" value="stroller-friendly" class="h-4 w-4 text-blue-600 bg-gray-600 border-gray-500 rounded focus:ring-blue-500 filter-checkbox">
-                            <label for="criteria-stroller-friendly" class="ml-2 block text-gray-300">Stroller-Friendly</label>
-                        </div>
-                         <div class="flex items-center">
-                            <input id="criteria-wheelchair-accessible" name="criteria-wheelchair-accessible" type="checkbox" value="wheelchair-accessible" class="h-4 w-4 text-blue-600 bg-gray-600 border-gray-500 rounded focus:ring-blue-500 filter-checkbox">
-                            <label for="criteria-wheelchair-accessible" class="ml-2 block text-gray-300">Wheelchair Accessible</label>
-                        </div>
-                         <div class="flex items-center">
-                            <input id="criteria-nordic-walking" name="criteria-nordic-walking" type="checkbox" value="nordic-walking" class="h-4 w-4 text-blue-600 bg-gray-600 border-gray-500 rounded focus:ring-blue-500 filter-checkbox">
-                            <label for="criteria-nordic-walking" class="ml-2 block text-gray-300">Nordic Walking Suitable</label>
-                        </div>
-                         <div class="flex items-center">
-                            <input id="criteria-circular" name="criteria-circular" type="checkbox" value="circular" class="h-4 w-4 text-blue-600 bg-gray-600 border-gray-500 rounded focus:ring-blue-500 filter-checkbox">
-                            <label for="criteria-circular" class="ml-2 block text-gray-300">Circular Route</label>
-                        </div>
-                         <div class="flex items-center">
-                            <input id="criteria-hiking-trail" name="criteria-hiking-trail" type="checkbox" value="hiking-trail" class="h-4 w-4 text-blue-600 bg-gray-600 border-gray-500 rounded focus:ring-blue-500 filter-checkbox">
-                            <label for="criteria-hiking-trail" class="ml-2 block text-gray-300">Major Hiking Trail</label>
-                        </div>
-                         <div class="flex items-center">
-                            <input id="criteria-castle" name="criteria-castle" type="checkbox" value="castle" class="h-4 w-4 text-blue-600 bg-gray-600 border-gray-500 rounded focus:ring-blue-500 filter-checkbox">
-                            <label for="criteria-castle" class="ml-2 block text-gray-300">Features Castles</label>
-                        </div>
-                         <div class="flex items-center">
-                            <input id="criteria-pottery" name="criteria-pottery" type="checkbox" value="pottery" class="h-4 w-4 text-blue-600 bg-gray-600 border-gray-500 rounded focus:ring-blue-500 filter-checkbox">
-                            <label for="criteria-pottery" class="ml-2 block text-gray-300">Features Pottery</label>
-                        </div>
-                         <div class="flex items-center">
-                            <input id="criteria-church" name="criteria-church" type="checkbox" value="church" class="h-4 w-4 text-blue-600 bg-gray-600 border-gray-500 rounded focus:ring-blue-500 filter-checkbox">
-                            <label for="criteria-church" class="ml-2 block text-gray-300">Features Churches</label>
-                        </div>
-                         <div class="flex items-center">
-                            <input id="criteria-art" name="criteria-art" type="checkbox" value="art" class="h-4 w-4 text-blue-600 bg-gray-600 border-gray-500 rounded focus:ring-blue-500 filter-checkbox">
-                            <label for="criteria-art" class="ml-2 block text-gray-300">Features Art</label>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-             <div class="mb-4 p-3 bg-gray-700 rounded-md">
-                <h3 class="text-lg font-medium mb-2">Points of Interest</h3>
-                 <label class="block text-sm font-medium text-gray-300 mb-1">Toggle Visibility</label>
-                 <div class="space-y-1 text-sm">
-                    <div class="flex items-center">
-                        <input id="toggle-accommodation" name="toggle-accommodation" type="checkbox" checked class="h-4 w-4 text-blue-600 bg-gray-600 border-gray-500 rounded focus:ring-blue-500 poi-toggle-checkbox" data-layer-group="accommodation">
-                        <label for="toggle-accommodation" class="ml-2 block text-gray-300"><i class="fas fa-bed w-4 mr-1 text-center"></i> Accommodation</label>
-                    </div>
-                     <div class="flex items-center">
-                        <input id="toggle-amenities" name="toggle-amenities" type="checkbox" checked class="h-4 w-4 text-blue-600 bg-gray-600 border-gray-500 rounded focus:ring-blue-500 poi-toggle-checkbox" data-layer-group="amenities">
-                        <label for="toggle-amenities" class="ml-2 block text-gray-300"><i class="fas fa-map-marker-alt w-4 mr-1 text-center"></i> Local Amenities</label>
-                    </div>
-                 </div>
-            </div>
-
-             <div class="mb-4 p-3 bg-gray-700 rounded-md">
-                <h3 class="text-lg font-medium mb-2">Weather (Hoher Fläming)</h3>
-                <div id="weather-widget" class="text-sm text-gray-300">
-                    <p><i class="fas fa-spinner fa-spin mr-1"></i> Loading weather...</p>
-                    </div>
-            </div>
-
-            <div class="flex space-x-2 mt-4 sticky bottom-0 bg-gray-800 py-3 -mx-4 px-4 border-t border-gray-700">
-                <button id="apply-filters-btn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition duration-150 ease-in-out flex items-center justify-center">
-                    <i class="fas fa-filter mr-2"></i> Apply Filters
-                </button>
-                <button id="reset-filters-btn" class="flex-1 bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-md transition duration-150 ease-in-out flex items-center justify-center">
-                    <i class="fas fa-undo mr-2"></i> Reset
-                </button>
-            </div>
-
-        </div>
-
     </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-            crossorigin=""></script>
+    <!-- POI Info Panel -->
+    <div id="info-panel" class="modal-panel">
+        <div id="info-content" class="modal-content">
+            <h2 id="info-title">Point of Interest</h2>
+            <p id="info-description">Details about the point of interest...</p>
+            <button id="return-button" class="modal-button">Return to Flight</button>
+        </div>
+    </div>
+
+    <!-- Completion Panel -->
+    <div id="completion-panel" class="modal-panel">
+        <div id="completion-content" class="modal-content">
+            <h2>Mission Complete!</h2>
+            <p>Congratulations! You have visited all 16 points of interest in the Hoher Fläming Nature Park.</p>
+            <button id="restart-button" class="modal-button">Fly Again</button>
+        </div>
+    </div>
+
+    <!-- Joystick Controls -->
+    <div id="joystick-container">
+        <div id="joystick-base"></div>
+        <div id="joystick-handle"></div>
+    </div>
+
+    <!-- Land Button (Separate) -->
+    <button id="land-button" aria-label="Land">Land</button>
+
+    <!-- POI Checklist -->
+    <button id="checklist-toggle">☰</button>
+    <div id="poi-checklist-panel">
+        <h3>POI Checklist</h3>
+        <ul id="poi-list">
+            <!-- List items will be injected here by JS -->
+        </ul>
+    </div>
+
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // --- DOM Element References ---
-            const mapElement = document.getElementById('map');
-            const loadingIndicator = document.getElementById('loading-indicator');
-            const sidebar = document.getElementById('sidebar');
-            const sidebarToggle = document.getElementById('sidebar-toggle');
-            const sidebarClose = document.getElementById('sidebar-close');
-            const routeTypeSelect = document.getElementById('route-type');
-            const difficultyLevelSelect = document.getElementById('difficulty-level');
-            const maxLengthSlider = document.getElementById('max-length');
-            const maxLengthValue = document.getElementById('max-length-value');
-            const maxDurationSlider = document.getElementById('max-duration');
-            const maxDurationValue = document.getElementById('max-duration-value');
-            const startPointSelect = document.getElementById('start-point');
-            const criteriaCheckboxes = document.querySelectorAll('.filter-checkbox');
-            const poiToggleCheckboxes = document.querySelectorAll('.poi-toggle-checkbox');
-            const searchInput = document.getElementById('search-input');
-            const applyFiltersBtn = document.getElementById('apply-filters-btn');
-            const resetFiltersBtn = document.getElementById('reset-filters-btn');
-            const weatherWidget = document.getElementById('weather-widget');
+        // --- Element References ---
+        const helicopterContainer = document.getElementById('helicopter-container');
+        const helicopterElement = document.getElementById('helicopter');
+        const mapContainer = document.getElementById('map-container');
+        const mapContent = document.getElementById('map-content');
+        const mapImage = document.getElementById('map-image');
+        const speedInfo =  document.getElementById('speed-info');
+        const angleInfo = document.getElementById('angle-info');
+        const debugInfo = document.getElementById('debug-info');
+        const landIndicator = document.getElementById('land-indicator');
+        const landPrompt = document.getElementById('land-prompt');
+        const poiNameSpan = document.getElementById('poi-name');
+        const infoPanel = document.getElementById('info-panel');
+        const infoTitle = document.getElementById('info-title');
+        const infoDescription = document.getElementById('info-description');
+        const returnButton = document.getElementById('return-button');
+        const joystickContainer = document.getElementById('joystick-container');
+        const joystickBase = document.getElementById('joystick-base');
+        const joystickHandle = document.getElementById('joystick-handle');
+        const landButton = document.getElementById('land-button');
+        const checklistToggle = document.getElementById('checklist-toggle');
+        const poiChecklistPanel = document.getElementById('poi-checklist-panel');
+        const poiList = document.getElementById('poi-list');
+        const completionPanel = document.getElementById('completion-panel');
+        const restartButton = document.getElementById('restart-button');
 
-            // --- Map Initialization ---
-            const centerLat = 52.147; // Approximate center of Hoher Fläming
-            const centerLng = 12.589; // Approximate center of Hoher Fläming
-            const initialZoom = 10; // Adjusted for a broader view of the region
-            const map = L.map(mapElement, {
-                zoomControl: true // Default Leaflet zoom control
-            }).setView([centerLat, centerLng], initialZoom);
+        console.log("Script starting...");
 
-            // --- Base Layers ---
-            const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-                maxZoom: 19
-            }).addTo(map); // Add OSM as default base layer
+        // --- Audio Setup (Tone.js) ---
+        let audioReady = false;
+        let engineSound, landingSound, clickSound;
 
-            const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
-                maxZoom: 19
+        function setupAudio() {
+            // Helicopter engine: A filtered noise loop
+            engineSound = new Tone.Noise("pink").start();
+            const filter = new Tone.AutoFilter({
+                frequency: "8n",
+                baseFrequency: 100,
+                octaves: 4
+            }).toDestination();
+            engineSound.connect(filter);
+            engineSound.volume.value = -30; // Start very quiet
+
+            // Landing sound: A simple synth pluck
+            landingSound = new Tone.Synth({
+                oscillator: { type: "sine" },
+                envelope: { attack: 0.01, decay: 0.3, sustain: 0.1, release: 0.5 }
+            }).toDestination();
+
+             // UI Click sound
+            clickSound = new Tone.Synth({
+                oscillator: { type: "triangle" },
+                envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 }
+            }).toDestination();
+            clickSound.volume.value = -10;
+
+            audioReady = true;
+            console.log("Audio components initialized.");
+        }
+
+        // --- Configuration ---
+        const MAP_WIDTH = 2048; const MAP_HEIGHT = 1448;
+        const startX = 1364; const startY = 603;
+        const turnRate = 3.0;
+        const forwardThrustPower = 0.15;
+        const maxSpeed = 5.0;
+        const normalDrag = 0.98;
+        const landingZoneDrag = 0.85;
+        const minSpeed = 0.05;
+        const landingRadius = 60;
+        let joystickMaxRadius = 0;
+
+        // --- POI Data (with 'visited' property) ---
+        const pointsOfInterest = [
+            { id: 1, name: "Stadt und Burg Ziesar", x: 470, y: 150, visited: false, description: "..." },
+            { id: 2, name: "Gutspark Dahlen", x: 708, y: 357, visited: false, description: "..." },
+            { id: 3, name: "Klein Briesener Bach", x: 998, y: 181, visited: false, description: "..." },
+            { id: 4, name: "Paradies Dippmannsdorf", x: 1322, y: 265, visited: false, description: "..." },
+            { id: 5, name: "Töpferort Görzke", x: 416, y: 439, visited: false, description: "..." },
+            { id: 6, name: "Hagelberg", x: 946, y: 719, visited: false, description: "..." },
+            { id: 7, name: "Bad Belzig mit Burg Eisenhardt", x: 1364, y: 603, visited: false, description: "..." },
+            { id: 8, name: "Aussichtspunkt Belziger Landschaftswiesen", x: 1616, y: 501, visited: false, description: "..." },
+            { id: 9, name: "Wiesenburg mit Schloss und Park", x: 836, y: 843, visited: false, description: "..." },
+            { id: 10, name: "Naturparkzentrum Hoher Fläming", x: 1170, y: 1231, visited: false, description: "..." },
+            { id: 11, name: "Raben mit Burg Rabenstein", x: 1124, y: 1329, visited: false, description: "..." },
+            { id: 12, name: "Niemegk", x: 1624, y: 1135, visited: false, description: "..." },
+            { id: 13, name: "Flämingbuchen", x: 654, y: 1171, visited: false, description: "..." },
+            { id: 14, name: "Brautrummel mit Riesenstein", x: 1110, y: 1023, visited: false, description: "..." },
+            { id: 15, name: "Neuendorfer Rummel", x: 1482, y: 1309, visited: false, description: "..." },
+            { id: 16, name: "Garrey mit Aussichtsplattform", x: 1494, y: 1427, visited: false, description: "..." }
+        ];
+        // Full descriptions are omitted for brevity but should be included from previous versions.
+
+        // --- Game State ---
+        let helicopterState = { x: startX, y: startY, angle: -90, speed: 0 };
+        let joystickState = { active: false, targetAngle: -90, magnitude: 0 };
+        let lastTimestamp = 0; let gameReady = false; let currentNearbyPOI = null; let gameState = 'FLYING';
+
+        // --- Initial Setup Functions ---
+        function initializeGame() {
+            // Create POI markers on the map and in the checklist
+            mapContent.innerHTML = ''; // Clear any previous markers
+            poiList.innerHTML = '';
+            pointsOfInterest.forEach(poi => {
+                // Create map marker
+                const marker = document.createElement('div');
+                marker.className = 'poi-marker';
+                marker.id = `marker-${poi.id}`;
+                marker.style.left = `${poi.x}px`;
+                marker.style.top = `${poi.y}px`;
+                const numberSpan = document.createElement('span');
+                numberSpan.className = 'poi-number';
+                numberSpan.textContent = poi.id;
+                marker.appendChild(numberSpan);
+                mapContent.appendChild(marker);
+
+                // Create checklist item
+                const listItem = document.createElement('li');
+                listItem.id = `checklist-item-${poi.id}`;
+                listItem.textContent = `${poi.id}. ${poi.name}`;
+                poiList.appendChild(listItem);
             });
+            // Re-add the map image and helicopter container
+            mapContent.appendChild(mapImage);
+            mapContent.appendChild(helicopterContainer);
+        }
 
-            // Layer control for switching base maps
-            const baseMaps = {
-                "Karte": osmLayer,
-                "Satellit": satelliteLayer
-            };
-            const layerControl = L.control.layers(baseMaps).addTo(map); // Add layer control to map
+        // --- Image Loading Check ---
+        mapImage.onload = () => { console.log("DEBUG: mapImage.onload fired!"); debugInfo.style.display = 'none'; mapImage.classList.remove('loading', 'error'); gameReady = true; console.log("DEBUG: gameReady set to true."); calculateJoystickRadius(); centerViewOnHelicopter(); };
+        mapImage.onerror = () => { console.error("DEBUG: mapImage.onerror fired!"); debugInfo.textContent = "Error loading map image!"; debugInfo.style.display = 'block'; mapImage.classList.remove('loading'); mapImage.classList.add('error'); gameReady = false; };
+        if (mapImage.complete && mapImage.naturalWidth > 0) { mapImage.onload(); } else if (mapImage.complete) { mapImage.onerror(); } else { console.log("DEBUG: Image not yet complete."); }
 
-            // --- Data Storage ---
-            let allRoutesData = null; // To store fetched or defined route data
-            let allPOIsData = null;   // To store fetched or defined POI data
-            let routeLayers = [];     // Array to keep track of currently displayed route layers
-            let poiLayers = {};       // Object to keep track of POI layer groups
+        // --- Keyboard Control Listeners (Simplified for testing) ---
+        document.addEventListener('keydown', (event) => { if (gameState === 'SHOWING_INFO') return; if ((event.key === 'l' || event.key === 'L') && gameState === 'NEAR_POI' && currentNearbyPOI) { event.preventDefault(); landAndShowInfo(currentNearbyPOI); return; } switch (event.key) { case 'ArrowLeft': joystickState.targetAngle = (joystickState.targetAngle - 5 + 360) % 360; joystickState.active = true; break; case 'ArrowRight': joystickState.targetAngle = (joystickState.targetAngle + 5) % 360; joystickState.active = true; break; case 'ArrowUp': joystickState.magnitude = Math.min(1, joystickState.magnitude + 0.1); joystickState.active = true; break; case 'ArrowDown': joystickState.magnitude = Math.max(0, joystickState.magnitude - 0.1); joystickState.active = true; break; } });
 
-            // --- Placeholder Data (Updated with PDF info v3 & User Coords - route coordinates are still placeholders) ---
-            // Note: Coordinates are illustrative and do not represent actual route paths.
-            // Lengths and durations are more aligned with typical expectations for such routes.
-            const placeholderRoutes = {
-                "type": "FeatureCollection",
-                "features": [
-                    // --- Major Walking Routes ---
-                    {
-                        "type": "Feature",
-                        "geometry": { "type": "LineString", "coordinates": [[12.590, 52.141], [12.65, 52.15], [12.70, 52.12], [12.77, 52.18], [12.70, 52.20], [12.60, 52.22], [12.50, 52.18], [12.4521, 52.1121], [12.4, 51.98]] },
-                        "properties": { "name": "Burgenwanderweg (Hoher Fläming Section)", "type": "walking", "length_km": 147.0, "duration_h": 40.0, "start_point": "bad-belzig", "end_point": "various", "public_transport_accessible": true, "tags": ["hiking-trail", "castle", "history", "nature", "long-distance", "e11"], "difficulty": "medium", "description": "A long-distance hiking trail connecting castles and historical sites across the Hoher Fläming region. Part of the European long-distance path E11." }
-                    },
-                    {
-                        "type": "Feature",
-                        "geometry": { "type": "LineString", "coordinates": [[12.58, 52.14], [12.55, 52.10], [12.60, 52.08], [12.65, 52.11], [12.63, 52.15]] },
-                        "properties": { "name": "Kunstwanderweg (Hoher Fläming Section)", "type": "walking", "length_km": 18.0, "duration_h": 5.0, "start_point": "bad-belzig", "end_point": "wiesenburg", "public_transport_accessible": true, "tags": ["art", "nature", "culture", "hiking-trail"], "difficulty": "easy", "description": "A trail connecting Bad Belzig and Wiesenburg, featuring various art installations along the way." }
-                    },
-                    // --- Shorter/Local Walking Routes ---
-                    {
-                        "type": "Feature",
-                        "geometry": { "type": "LineString", "coordinates": [[12.305, 52.137], [12.31, 52.14], [12.30, 52.145], [12.29, 52.142], [12.305, 52.137]] },
-                        "properties": { "name": "Wiesenburg Park Circular Walk", "type": "walking", "length_km": 5.0, "duration_h": 1.5, "start_point": "wiesenburg", "public_transport_accessible": true, "tags": ["park", "nature", "family-friendly", "circular", "castle"], "difficulty": "easy", "description": "A pleasant walk through the Wiesenburg Castle park and surrounding nature." }
-                    },
-                    {
-                        "type": "Feature",
-                        "geometry": { "type": "LineString", "coordinates": [[12.43, 52.06], [12.44, 52.055], [12.45, 52.065], [12.435, 52.07]] },
-                        "properties": { "name": "Rabenstein Castle Loop", "type": "walking", "length_km": 8.0, "duration_h": 2.5, "start_point": "raben", "public_transport_accessible": true, "tags": ["castle", "forest", "nature", "nordic-walking"], "difficulty": "medium", "description": "A scenic loop around Rabenstein Castle, offering views and forest paths." }
-                    },
-                    {
-                        "type": "Feature",
-                        "geometry": { "type": "LineString", "coordinates": [[12.68, 52.09], [12.70, 52.08], [12.71, 52.10], [12.69, 52.11]] },
-                        "properties": { "name": "Niemegk Town & Country Walk", "type": "walking", "length_km": 6.0, "duration_h": 2.0, "start_point": "niemegk", "public_transport_accessible": true, "tags": ["town", "fields", "easy-walk", "family-friendly"], "difficulty": "easy", "description": "An easy walk exploring the town of Niemegk and its immediate surroundings." }
-                    },
+        // --- Joystick Touch Listeners ---
+        let joystickActiveTouchId = null;
+        let baseRect, baseCenterX, baseCenterY;
 
-                    // --- Cycling Routes ---
-                    {
-                        "type": "Feature",
-                        "geometry": { "type": "LineString", "coordinates": [[12.59, 52.14], [12.45, 52.11], [12.30, 52.13], [12.35, 52.18], [12.50, 52.20]] },
-                        "properties": { "name": "Fläming Skate - RK1 (Short Loop)", "type": "cycling", "length_km": 25.0, "duration_h": 2.0, "start_point": "bad-belzig", "public_transport_accessible": true, "tags": ["cycling", "skating", "paved", "family-friendly", "fläming-skate"], "difficulty": "easy", "description": "A shorter loop section of the famous Fläming Skate, suitable for families and casual cyclists." }
-                    },
-                    {
-                        "type": "Feature",
-                        "geometry": { "type": "LineString", "coordinates": [[12.59, 52.14], [12.77, 52.18], [12.80, 52.10], [12.68, 52.00], [12.50, 51.95], [12.40, 52.05], [12.59, 52.14]] },
-                        "properties": { "name": "Tour de Fläming Castles", "type": "cycling", "length_km": 75.0, "duration_h": 5.0, "start_point": "bad-belzig", "public_transport_accessible": true, "tags": ["cycling", "castle", "history", "scenic"], "difficulty": "medium", "description": "A longer cycling tour connecting several castles and picturesque villages in the Hoher Fläming." }
-                    },
-                    {
-                        "type": "Feature",
-                        "geometry": { "type": "LineString", "coordinates": [[12.305, 52.137],[12.10, 52.15], [12.00, 52.05], [12.25, 51.95], [12.45, 52.00], [12.55, 52.08], [12.40, 52.12], [12.305, 52.137]] },
-                        "properties": { "name": "Western Fläming Explorer (Cycling)", "type": "cycling", "length_km": 90.0, "duration_h": 6.5, "start_point": "wiesenburg", "public_transport_accessible": false, "tags": ["cycling", "long-distance", "nature", "villages"], "difficulty": "hard", "description": "A challenging cycling route exploring the western parts of Hoher Fläming, featuring varied terrain." }
-                    }
-                ]
-            };
-
-            // --- POI Data (Placeholder - to be expanded) ---
-            // Example: allPOIsData = { "type": "FeatureCollection", "features": [ ... POI features ... ] };
-            // Each POI feature should have a "properties" object with at least a "name" and a "category" (e.g., "accommodation", "amenity", "viewpoint")
-            // And an "icon" property (e.g., "fa-bed", "fa-utensils", "fa-camera") and "iconColor" (e.g., 'blue', 'green')
-
-            // --- Function to Show Loading Indicator ---
-            function showLoading(isLoading) {
-                loadingIndicator.style.display = isLoading ? 'flex' : 'none';
+        function calculateJoystickRadius() { if(joystickBase && joystickHandle) { joystickMaxRadius = joystickBase.offsetWidth / 2 - joystickHandle.offsetWidth / 2; baseRect = joystickBase.getBoundingClientRect(); baseCenterX = baseRect.left + baseRect.width / 2; baseCenterY = baseRect.top + baseRect.height / 2; } else { joystickMaxRadius = 50; } }
+        function handleJoystickTouch(event) {
+            if (gameState === 'SHOWING_INFO' || !joystickMaxRadius) return;
+            // Start audio on first interaction
+            if (!audioReady) {
+                Tone.start().then(setupAudio);
             }
-
-            // --- Function to Create Custom Icons for POIs (Example) ---
-            function createCustomIcon(iconClass, color, size = [28, 28]) {
-                return L.divIcon({
-                    html: `<i class="fas ${iconClass}" style="color: ${color};"></i>`,
-                    className: 'leaflet-fa-icon', // General class for potential global styling
-                    iconSize: size,
-                    iconAnchor: [size[0] / 2, size[1]], // Point of the icon which will correspond to marker's location
-                    popupAnchor: [0, -size[1]]    // Point from which the popup should open relative to the iconAnchor
-                });
+            event.preventDefault();
+            for (let i = 0; i < event.changedTouches.length; i++) {
+                let touch = event.changedTouches[i];
+                if (event.type === 'touchstart') { if (joystickActiveTouchId === null && (touch.target === joystickHandle || touch.target === joystickBase)) { joystickActiveTouchId = touch.identifier; joystickState.active = true; updateJoystick(touch.clientX, touch.clientY); } }
+                else if (event.type === 'touchmove') { if (touch.identifier === joystickActiveTouchId) updateJoystick(touch.clientX, touch.clientY); }
+                else if (event.type === 'touchend' || event.type === 'touchcancel') { if (touch.identifier === joystickActiveTouchId) { joystickActiveTouchId = null; joystickState.active = false; joystickState.magnitude = 0; joystickHandle.style.transform = `translate(-50%, -50%)`; joystickHandle.style.left = `50%`; joystickHandle.style.top = `50%`; } }
             }
+        }
+        function updateJoystick(touchX, touchY) { let deltaX = touchX - baseCenterX; let deltaY = touchY - baseCenterY; let angleRad = Math.atan2(deltaY, deltaX); joystickState.targetAngle = angleRad * (180 / Math.PI); let distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY); let clampedDistance = Math.min(distance, joystickMaxRadius); joystickState.magnitude = joystickMaxRadius > 0 ? (clampedDistance / joystickMaxRadius) : 0; let handleX = (Math.cos(angleRad) * clampedDistance); let handleY = (Math.sin(angleRad) * clampedDistance); joystickHandle.style.left = `calc(50% + ${handleX}px)`; joystickHandle.style.top = `calc(50% + ${handleY}px)`; joystickHandle.style.transform = `translate(-50%, -50%)`; }
+        document.addEventListener('touchstart', handleJoystickTouch, { passive: false }); document.addEventListener('touchmove', handleJoystickTouch, { passive: false }); document.addEventListener('touchend', handleJoystickTouch, { passive: false }); document.addEventListener('touchcancel', handleJoystickTouch, { passive: false }); window.addEventListener('resize', calculateJoystickRadius);
 
-            // --- Function to Add Routes to Map ---
-            function addRoutesToMap(routes) {
-                // Clear existing route layers
-                routeLayers.forEach(layer => map.removeLayer(layer));
-                routeLayers = [];
+        // --- UI Button Listeners ---
+        returnButton.addEventListener('click', () => { if(audioReady) clickSound.triggerAttackRelease("C5", "8n"); hideInfoAndResumeFlight(); });
+        landButton.addEventListener('touchstart', (event) => { event.preventDefault(); if (gameState === 'NEAR_POI' && currentNearbyPOI) landAndShowInfo(currentNearbyPOI); }, { passive: false });
+        checklistToggle.addEventListener('click', () => { poiChecklistPanel.classList.toggle('visible'); });
+        restartButton.addEventListener('click', () => { location.reload(); }); // Simple restart
 
-                if (!routes || !routes.features) {
-                    console.warn("No routes to display or invalid route data format.");
-                    return;
-                }
+        // --- Game Loop ---
+        function gameLoop(timestamp) { if (!lastTimestamp) lastTimestamp = timestamp; const deltaTime = (timestamp - lastTimestamp) / (1000 / 60); lastTimestamp = timestamp; if (gameReady && gameState !== 'SHOWING_INFO' && gameState !== 'COMPLETE') { update(deltaTime); render(); centerViewOnHelicopter(); } requestAnimationFrame(gameLoop); }
 
-                routes.features.forEach(route => {
-                    const routeLayer = L.geoJSON(route, {
-                        style: (feature) => {
-                            let color = '#3388ff'; // Default blue
-                            if (feature.properties.type === 'walking') color = '#ff7800'; // Orange for walking
-                            if (feature.properties.type === 'cycling') color = '#4CAF50'; // Green for cycling
-                            if (feature.properties.difficulty === 'hard') color = '#d9534f'; // Red for hard
-                            return { color: color, weight: 4, opacity: 0.7 };
-                        },
-                        onEachFeature: (feature, layer) => {
-                            // Create popup content
-                            let popupContent = `<b>${feature.properties.name || 'Unnamed Route'}</b>`;
-                            if (feature.properties.length_km) popupContent += `<br>Length: ${feature.properties.length_km} km`;
-                            if (feature.properties.duration_h) popupContent += `<br>Duration: ${feature.properties.duration_h} h`;
-                            if (feature.properties.difficulty) popupContent += `<br>Difficulty: ${feature.properties.difficulty.charAt(0).toUpperCase() + feature.properties.difficulty.slice(1)}`;
-                            if (feature.properties.description) popupContent += `<br><small><em>${feature.properties.description}</em></small>`;
-                            if (feature.properties.tags) popupContent += `<br><small>Tags: ${feature.properties.tags.join(', ')}</small>`;
+        // --- Update Logic ---
+        function update(dt) {
+             let wasNearPOI = (gameState === 'NEAR_POI');
+             let foundNearbyPOI = null;
+             for (const poi of pointsOfInterest) { if (Math.sqrt(Math.pow(helicopterState.x - poi.x, 2) + Math.pow(helicopterState.y - poi.y, 2)) < landingRadius) { foundNearbyPOI = poi; break; } }
+             if (foundNearbyPOI) { if (!wasNearPOI) console.log(`DEBUG: Entering landing zone for POI ${foundNearbyPOI.id}`); gameState = 'NEAR_POI'; currentNearbyPOI = foundNearbyPOI; }
+             else { if (wasNearPOI) console.log("DEBUG: Exiting landing zone"); if (gameState !== 'SHOWING_INFO') { gameState = 'FLYING'; currentNearbyPOI = null; } }
+            if (joystickState.active) { let currentAngle = helicopterState.angle; let targetAngle = joystickState.targetAngle; let angleDiff = targetAngle - currentAngle; while (angleDiff <= -180) angleDiff += 360; while (angleDiff > 180) angleDiff -= 360; let turnAmount = turnRate * dt; if (Math.abs(angleDiff) < turnAmount) { helicopterState.angle = targetAngle; } else { helicopterState.angle += (angleDiff > 0 ? 1 : -1) * turnAmount; } helicopterState.angle = (helicopterState.angle + 360) % 360; }
+            let acceleration = 0;
+            if (joystickState.active) { acceleration += forwardThrustPower * joystickState.magnitude; }
+            helicopterState.speed += acceleration * dt;
+            const currentDrag = (gameState === 'NEAR_POI') ? landingZoneDrag : normalDrag;
+            helicopterState.speed *= Math.pow(currentDrag, dt);
+            if (helicopterState.speed < minSpeed && !joystickState.active) { if (gameState !== 'NEAR_POI' || helicopterState.speed < 0.01) { helicopterState.speed = 0; } }
+            helicopterState.speed = Math.max(0, Math.min(helicopterState.speed, maxSpeed));
+            const angleRad = helicopterState.angle * (Math.PI / 180);
+            const vx = Math.cos(angleRad) * helicopterState.speed; const vy = Math.sin(angleRad) * helicopterState.speed;
+            helicopterState.x += vx * dt; helicopterState.y += vy * dt;
+            helicopterState.x = Math.max(0, Math.min(MAP_WIDTH, helicopterState.x)); helicopterState.y = Math.max(0, Math.min(MAP_HEIGHT, helicopterState.y));
+             if (gameState === 'NEAR_POI') { poiNameSpan.textContent = currentNearbyPOI.name; landIndicator.style.display = 'block'; landPrompt.style.display = 'inline'; landButton.style.display = 'flex'; joystickContainer.style.display = 'block';}
+             else if (gameState === 'FLYING') { landIndicator.style.display = 'none'; landPrompt.style.display = 'none'; landButton.style.display = 'none'; currentNearbyPOI = null; }
+        }
 
-                            layer.bindPopup(popupContent);
-
-                            // Highlight on hover
-                            layer.on('mouseover', function (e) {
-                                this.setStyle({ weight: 6, opacity: 1.0 });
-                                if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
-                                    this.bringToFront();
-                                }
-                            });
-                            layer.on('mouseout', function (e) {
-                                routeLayer.resetStyle(this); // Reset to original style
-                            });
-                        }
-                    });
-                    routeLayers.push(routeLayer);
-                    routeLayer.addTo(map);
-                });
-                if (routeLayers.length > 0) {
-                     // Fit map to bounds of all routes if multiple routes, or zoom to single route
-                    const group = new L.featureGroup(routeLayers);
-                    map.fitBounds(group.getBounds().pad(0.1)); // Add some padding
-                } else if (routes.features.length === 0) {
-                    // If no routes match filters, maybe reset to default view or show a message
-                    map.setView([centerLat, centerLng], initialZoom);
-                }
+        // --- Render Logic ---
+        function render() {
+            helicopterContainer.style.left = `${helicopterState.x}px`; helicopterContainer.style.top = `${helicopterState.y}px`;
+            const visualAngle = helicopterState.angle + 90;
+            helicopterContainer.style.transform = `translate(-50%, 0%) rotate(${visualAngle}deg)`;
+            speedInfo.textContent = helicopterState.speed.toFixed(2);
+            let displayAngle = Math.round((helicopterState.angle + 90 + 360) % 360);
+            angleInfo.textContent = `${displayAngle}°`;
+            // Update audio based on state
+            if (audioReady) {
+                const speedRatio = helicopterState.speed / maxSpeed;
+                engineSound.volume.value = -30 + (speedRatio * 25); // from -30dB to -5dB
+                engineSound.volume.rampTo(engineSound.volume.value, 0.1);
+                engineSound.playbackRate = 1 + speedRatio;
             }
+        }
 
+        // --- Map Scrolling Function ---
+        function centerViewOnHelicopter() { const scrollX = helicopterState.x - mapContainer.clientWidth / 2; const scrollY = helicopterState.y - mapContainer.clientHeight / 2; mapContainer.scrollTo({ left: scrollX, top: scrollY, behavior: 'auto' }); }
 
-            // --- Function to Filter Routes ---
-            function filterAndDisplayRoutes() {
-                showLoading(true);
+        // --- Landing and Info Panel Functions ---
+        function landAndShowInfo(poi) {
+            gameState = 'SHOWING_INFO';
+            if(audioReady) landingSound.triggerAttackRelease("A3", "4n");
+            currentNearbyPOI = poi; helicopterState.speed = 0;
+            joystickState.active = false; joystickState.magnitude = 0;
+            joystickHandle.style.transform = `translate(-50%, -50%)`; joystickHandle.style.left = `50%`; joystickHandle.style.top = `50%`;
+            joystickActiveTouchId = null;
+            landIndicator.style.display = 'none'; landPrompt.style.display = 'none';
+            landButton.style.display = 'none'; joystickContainer.style.display = 'none';
+            // Mark POI as visited
+            if (!poi.visited) {
+                poi.visited = true;
+                document.getElementById(`marker-${poi.id}`).classList.add('visited');
+                document.getElementById(`checklist-item-${poi.id}`).classList.add('visited');
+                checkCompletion();
+            }
+            // Show info panel
+            infoTitle.textContent = `${poi.id}. ${poi.name}`; infoDescription.innerHTML = poi.description.replace(/\n/g, '<br>');
+            infoPanel.classList.add('visible');
+        }
+        function hideInfoAndResumeFlight() {
+            if (!currentNearbyPOI) return;
+            infoPanel.classList.remove('visible'); joystickContainer.style.display = 'block';
+            helicopterState.x = currentNearbyPOI.x; helicopterState.y = currentNearbyPOI.y;
+            helicopterState.speed = 0; centerViewOnHelicopter();
+            gameState = 'FLYING';
+            calculateJoystickRadius();
+        }
 
-                // Simulate async operation if data were fetched
+        function checkCompletion() {
+            const allVisited = pointsOfInterest.every(p => p.visited);
+            if (allVisited) {
+                console.log("Mission Complete!");
+                gameState = 'COMPLETE';
                 setTimeout(() => {
-                    if (!allRoutesData || !allRoutesData.features) {
-                        console.warn("Route data not loaded yet.");
-                        addRoutesToMap({ type: "FeatureCollection", features: [] }); // Display empty map
-                        showLoading(false);
-                        return;
-                    }
-
-                    const selectedRouteType = routeTypeSelect.value;
-                    const selectedDifficulty = difficultyLevelSelect.value;
-                    const maxLength = parseFloat(maxLengthSlider.value);
-                    const maxDuration = parseFloat(maxDurationSlider.value);
-                    const selectedStartPoint = startPointSelect.value;
-                    const searchTerm = searchInput.value.toLowerCase();
-                    const activeCriteria = Array.from(criteriaCheckboxes)
-                                              .filter(cb => cb.checked)
-                                              .map(cb => cb.value);
-
-                    const filteredRoutes = allRoutesData.features.filter(route => {
-                        const props = route.properties;
-                        let matches = true;
-
-                        if (selectedRouteType !== 'all' && props.type !== selectedRouteType) matches = false;
-                        if (selectedDifficulty !== 'all' && props.difficulty !== selectedDifficulty) matches = false;
-                        if (props.length_km && props.length_km > maxLength) matches = false;
-                        if (props.duration_h && props.duration_h > maxDuration) matches = false;
-
-                        if (selectedStartPoint !== 'all') {
-                            // Check if the start_point matches or if the route name itself matches (for named routes like Burgenwanderweg)
-                            if (props.start_point !== selectedStartPoint && props.name.toLowerCase().indexOf(selectedStartPoint.replace(/-/g, " ")) === -1) {
-                                matches = false;
-                            }
-                        }
-
-
-                        if (searchTerm) {
-                            const nameMatch = props.name && props.name.toLowerCase().includes(searchTerm);
-                            const tagsMatch = props.tags && props.tags.some(tag => tag.toLowerCase().includes(searchTerm));
-                            const descriptionMatch = props.description && props.description.toLowerCase().includes(searchTerm);
-                            if (!nameMatch && !tagsMatch && !descriptionMatch) matches = false;
-                        }
-
-                        if (activeCriteria.length > 0) {
-                            if (!props.tags || !activeCriteria.every(crit => props.tags.includes(crit))) {
-                                matches = false;
-                            }
-                        }
-                        return matches;
-                    });
-
-                    addRoutesToMap({ type: "FeatureCollection", features: filteredRoutes });
-                    showLoading(false);
-                }, 200); // Short delay to simulate loading and allow UI to update
+                    completionPanel.classList.add('visible');
+                    infoPanel.classList.remove('visible'); // Hide info panel if open
+                }, 1000); // Show after a short delay
             }
+        }
 
-            // --- Function to Add POIs to Map ---
-            function addPOIsToMap(pois) {
-                // Clear existing POI layers first by group
-                Object.values(poiLayers).forEach(group => map.removeLayer(group));
-                poiLayers = {}; // Reset the poiLayers object
-
-                if (!pois || !pois.features) {
-                    console.warn("No POIs to display or invalid POI data format.");
-                    return;
-                }
-
-                pois.features.forEach(poi => {
-                    const category = poi.properties.category || 'general';
-                    const iconClass = poi.properties.icon || 'fa-map-marker-alt'; // Default icon
-                    const iconColor = poi.properties.iconColor || '#007bff'; // Default color (blue)
-
-                    if (!poiLayers[category]) {
-                        poiLayers[category] = L.layerGroup(); // Create a new layer group for the category if it doesn't exist
-                    }
-
-                    const marker = L.marker([poi.geometry.coordinates[1], poi.geometry.coordinates[0]], { // Lat, Lng for Leaflet
-                        icon: createCustomIcon(iconClass, iconColor)
-                    });
-
-                    let popupContent = `<b>${poi.properties.name || 'Point of Interest'}</b>`;
-                    if (poi.properties.description) popupContent += `<br>${poi.properties.description}`;
-                    if (poi.properties.address) popupContent += `<br><small>${poi.properties.address}</small>`;
-                    marker.bindPopup(popupContent);
-
-                    poiLayers[category].addLayer(marker); // Add marker to its category group
-                });
-
-                // Add all initially visible POI groups to the map (based on checkbox state)
-                poiToggleCheckboxes.forEach(checkbox => {
-                    const layerGroupName = checkbox.dataset.layerGroup;
-                    if (checkbox.checked && poiLayers[layerGroupName]) {
-                        poiLayers[layerGroupName].addTo(map);
-                    }
-                });
-            }
-
-            // --- Function to Toggle POI Layer Visibility ---
-            function togglePOILayer(layerGroupName, isVisible) {
-                if (poiLayers[layerGroupName]) {
-                    if (isVisible) {
-                        poiLayers[layerGroupName].addTo(map);
-                    } else {
-                        map.removeLayer(poiLayers[layerGroupName]);
-                    }
-                }
-            }
-
-
-            // --- Function to Fetch Weather Data (Hoher Fläming - using Bad Belzig as reference) ---
-            async function fetchWeather() {
-                // Using Open-Meteo API (free, no API key required for basic use)
-                // Coordinates for Bad Belzig: lat 52.14, lon 12.59
-                const weatherApiUrl = `https://api.open-meteo.com/v1/forecast?latitude=52.14&longitude=12.59&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,rain,showers,snowfall,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m&timezone=Europe%2FBerlin`;
-
-                try {
-                    const response = await fetch(weatherApiUrl);
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    const data = await response.json();
-
-                    if (data && data.current) {
-                        const current = data.current;
-                        const weatherDescription = getWeatherDescription(current.weather_code);
-                        const weatherIcon = getWeatherIcon(current.weather_code, current.is_day);
-
-                        weatherWidget.innerHTML = `
-                            <div class="flex items-center">
-                                <i class="fas ${weatherIcon} fa-2x mr-3 text-yellow-400"></i>
-                                <div>
-                                    <p class="font-semibold">${current.temperature_2m}°C (Feels like ${current.apparent_temperature}°C)</p>
-                                    <p>${weatherDescription}</p>
-                                    <p>Humidity: ${current.relative_humidity_2m}%</p>
-                                    <p>Wind: ${current.wind_speed_10m} km/h</p>
-                                </div>
-                            </div>
-                        `;
-                    } else {
-                        weatherWidget.innerHTML = '<p><i class="fas fa-exclamation-circle mr-1"></i> Weather data unavailable.</p>';
-                    }
-                } catch (error) {
-                    console.error("Error fetching weather:", error);
-                    weatherWidget.innerHTML = '<p><i class="fas fa-exclamation-circle mr-1"></i> Could not load weather.</p>';
-                }
-            }
-
-            function getWeatherIcon(code, isDay = 1) {
-                // Simplified WMO Weather interpretation codes to Font Awesome icons
-                if (code === 0) return isDay ? 'fa-sun' : 'fa-moon'; // Clear sky
-                if (code === 1 || code === 2 || code === 3) return isDay ? 'fa-cloud-sun' : 'fa-cloud-moon'; // Mainly clear, partly cloudy, overcast
-                if (code >= 45 && code <= 48) return 'fa-smog'; // Fog
-                if (code >= 51 && code <= 57) return 'fa-cloud-rain'; // Drizzle
-                if (code >= 61 && code <= 67) return 'fa-cloud-showers-heavy'; // Rain
-                if (code >= 71 && code <= 77) return 'fa-snowflake'; // Snow fall
-                if (code >= 80 && code <= 82) return 'fa-cloud-showers-heavy'; // Rain showers
-                if (code >= 85 && code <= 86) return 'fa-snowflake'; // Snow showers
-                if (code >= 95 && code <= 99) return 'fa-bolt'; // Thunderstorm
-                return 'fa-question-circle'; // Default
-            }
-
-            function getWeatherDescription(code) {
-                // WMO Weather interpretation codes
-                const descriptions = {
-                    0: 'Clear sky', 1: 'Mainly clear', 2: 'Partly cloudy', 3: 'Overcast',
-                    45: 'Fog', 48: 'Depositing rime fog',
-                    51: 'Light drizzle', 53: 'Moderate drizzle', 55: 'Dense drizzle',
-                    56: 'Light freezing drizzle', 57: 'Dense freezing drizzle',
-                    61: 'Slight rain', 63: 'Moderate rain', 65: 'Heavy rain',
-                    66: 'Light freezing rain', 67: 'Heavy freezing rain',
-                    71: 'Slight snow fall', 73: 'Moderate snow fall', 75: 'Heavy snow fall',
-                    77: 'Snow grains',
-                    80: 'Slight rain showers', 81: 'Moderate rain showers', 82: 'Violent rain showers',
-                    85: 'Slight snow showers', 86: 'Heavy snow showers',
-                    95: 'Thunderstorm', 96: 'Thunderstorm with slight hail', 99: 'Thunderstorm with heavy hail'
-                };
-                return descriptions[code] || 'Unknown weather';
-            }
-
-
-            // --- Event Listeners ---
-            // Slider value updates
-            maxLengthSlider.addEventListener('input', (e) => {
-                maxLengthValue.textContent = `${e.target.value} km`;
-            });
-            maxDurationSlider.addEventListener('input', (e) => {
-                maxDurationValue.textContent = `${e.target.value} h`;
-            });
-
-            // Apply and Reset Filters
-            applyFiltersBtn.addEventListener('click', filterAndDisplayRoutes);
-            resetFiltersBtn.addEventListener('click', () => {
-                routeTypeSelect.value = 'all';
-                difficultyLevelSelect.value = 'all';
-                maxLengthSlider.value = 150;
-                maxLengthValue.textContent = '150 km';
-                maxDurationSlider.value = 50;
-                maxDurationValue.textContent = '50 h';
-                startPointSelect.value = 'all';
-                searchInput.value = '';
-                criteriaCheckboxes.forEach(cb => cb.checked = false);
-                filterAndDisplayRoutes(); // Re-apply to show all routes
-                 // Reset POI toggles to checked and re-apply visibility
-                poiToggleCheckboxes.forEach(checkbox => {
-                    checkbox.checked = true;
-                    if (allPOIsData) { // Ensure POI data is loaded before toggling
-                         togglePOILayer(checkbox.dataset.layerGroup, true);
-                    }
-                });
-            });
-
-            // Search input - filter on enter or slight delay after typing
-            let searchTimeout;
-            searchInput.addEventListener('keyup', (event) => {
-                clearTimeout(searchTimeout);
-                if (event.key === 'Enter') {
-                    filterAndDisplayRoutes();
-                } else {
-                    searchTimeout = setTimeout(filterAndDisplayRoutes, 500); // Auto-apply after 500ms
-                }
-            });
-
-            // POI Toggle Checkboxes
-            poiToggleCheckboxes.forEach(checkbox => {
-                checkbox.addEventListener('change', (event) => {
-                    if (allPOIsData) { // Ensure POI data is loaded before toggling
-                        togglePOILayer(event.target.dataset.layerGroup, event.target.checked);
-                    } else if (event.target.checked) {
-                        // If data isn't loaded yet but user checks it, make sure it loads if/when data arrives
-                        // This case is mostly handled by addPOIsToMap checking current checkbox state
-                        console.log(`POI layer ${event.target.dataset.layerGroup} will be shown when data loads.`);
-                    }
-                });
-            });
-
-
-            // Sidebar toggle for mobile
-            sidebarToggle.addEventListener('click', () => {
-                sidebar.classList.remove('translate-x-full');
-                sidebar.classList.add('translate-x-0');
-            });
-            sidebarClose.addEventListener('click', () => {
-                sidebar.classList.remove('translate-x-0');
-                sidebar.classList.add('translate-x-full');
-            });
-
-            // --- Initial Data Load and Map Setup ---
-            function initializeApp() {
-                showLoading(true);
-                // Simulate fetching route data
-                // In a real app, this would be an API call: fetch('/api/routes').then(res => res.json()).then(data => { ... });
-                setTimeout(() => {
-                    allRoutesData = placeholderRoutes; // Use placeholder data
-                    filterAndDisplayRoutes(); // Display initial set of routes (all or filtered by default)
-                    // showLoading(false); // Loading will be hidden by filterAndDisplayRoutes
-                }, 500); // Simulate network delay
-
-                // Simulate fetching POI data
-                // In a real app: fetch('/api/pois').then(...)
-                setTimeout(() => {
-                    // Define some placeholder POIs
-                    allPOIsData = {
-                        "type": "FeatureCollection",
-                        "features": [
-                            { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.587, 52.142] }, "properties": { "name": "Tourist Information Bad Belzig", "category": "amenities", "icon": "fa-info-circle", "iconColor": "#007bff", "description": "Official tourist info center." } },
-                            { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.592, 52.145] }, "properties": { "name": "Hotel Burg Eisenhardt", "category": "accommodation", "icon": "fa-bed", "iconColor": "#5cb85c", "description": "Hotel located at Eisenhardt Castle." } },
-                            { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.305, 52.137] }, "properties": { "name": "Wiesenburg Castle Park", "category": "amenities", "icon": "fa-tree", "iconColor": "#f0ad4e", "description": "Historic park, good for walks." } },
-                            { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.433, 52.062] }, "properties": { "name": "Rabenstein Castle", "category": "amenities", "icon": "fa-chess-rook", "iconColor": "#d9534f", "description": "Medieval castle with tavern." } },
-                            { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.585, 52.140] }, "properties": { "name": "SteinTherme Bad Belzig", "category": "amenities", "icon": "fa-hot-tub", "iconColor": "#5bc0de", "description": "Thermal spa and wellness center." } },
-                            { "type": "Feature", "geometry": { "type": "Point", "coordinates": [12.77, 52.18] }, "properties": { "name": "Art Installation 'Der Wanderer'", "category": "amenities", "icon": "fa-palette", "iconColor": "#6f42c1", "description": "Part of the Kunstwanderweg." } }
-                        ]
-                    };
-                    addPOIsToMap(allPOIsData);
-                    // Ensure loading indicator is hidden if all data is processed
-                    if (!loadingIndicator.style.display || loadingIndicator.style.display !== 'none') {
-                         showLoading(false); // Hide if still visible after route loading
-                    }
-                }, 800); // Simulate slightly longer delay for POIs
-
-                fetchWeather(); // Fetch weather data
-            }
-
-            initializeApp(); // Start the application
+        // --- Start Game ---
+        initializeGame();
+        requestAnimationFrame(() => {
+             calculateJoystickRadius();
+             console.log("DEBUG: Starting game loop...");
+             requestAnimationFrame(gameLoop);
         });
     </script>
 </body>
 </html>
-
