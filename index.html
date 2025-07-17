@@ -3,605 +3,689 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Hoher Fläming POI Explorer</title>
-    <!-- Tone.js for audio -->
+    <title>Hoher Fläming Helicopter Explorer</title>
+    <!-- Tone.js for audio effects -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    
     <style>
-        /* Basic page styling */
+        /* ========================================
+        CSS STYLES
+        - In a larger project, this would be in a separate style.css file.
+        ========================================
+        */
+
+        :root {
+            --background-color: #2c3e50;
+            --map-background: #34495e;
+            --text-light: #ecf0f1;
+            --text-dark: #2c3e50;
+            --primary-color: #3498db;
+            --secondary-color: #f1c40f;
+            --success-color: #2ecc71;
+            --danger-color: #e74c3c;
+            --panel-background: rgba(44, 62, 80, 0.95);
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
         html, body {
-            margin: 0; padding: 0; overflow: hidden;
-            height: 100%; width: 100%;
-            background-color: #2c2c2c;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            height: 100%;
+            width: 100%;
+            background-color: var(--background-color);
+            font-family: var(--font-family);
             position: relative;
         }
 
-        /* Map Container */
+        /* --- Map & Helicopter --- */
         #map-container {
-            position: absolute; top: 0; left: 0;
-            width: 100%; height: 100%;
-            overflow: scroll; cursor: grab;
-            background-color: #555;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: scroll;
+            cursor: grab;
+            background-color: var(--map-background);
             transition: opacity 0.5s ease-in-out;
-            -webkit-overflow-scrolling: touch;
+            -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
         }
         #map-container:active { cursor: grabbing; }
 
-        /* Inner Map Content */
-        #map-content { position: relative; width: 2048px; height: 1448px; }
+        #map-content {
+            position: relative;
+            width: 2048px; /* Intrinsic width of the map image */
+            height: 1448px; /* Intrinsic height of the map image */
+        }
 
-        /* Map Image */
-        #map-image { display: block; width: 100%; height: 100%; opacity: 1; transition: opacity 0.5s; pointer-events: none; }
+        #map-image {
+            display: block;
+            width: 100%;
+            height: 100%;
+            opacity: 1;
+            transition: opacity 0.5s;
+            pointer-events: none;
+        }
         #map-image.loading { opacity: 0; }
-        #map-image.error { opacity: 0.2; }
+        #map-image.error { opacity: 0.1; }
 
-        /* Helicopter Container (for helicopter and shadow) */
         #helicopter-container {
             position: absolute;
-            width: 60px; height: 60px;
-            transform-origin: center top; /* Origin at nose */
+            width: 60px;
+            height: 60px;
+            transform-origin: center center;
             z-index: 10;
             pointer-events: none;
         }
 
-        /* Helicopter Image */
         #helicopter {
             position: absolute;
-            width: 100%; height: 100%;
-            font-size: 60px; /* Fallback emoji */
+            width: 100%;
+            height: 100%;
+            font-size: 50px;
             line-height: 60px;
             text-align: center;
             transition: transform 0.05s linear;
         }
 
-        /* Helicopter Shadow */
         #helicopter-shadow {
             position: absolute;
-            width: 80%;
-            height: 30%;
+            width: 70%;
+            height: 25%;
             background-color: rgba(0,0,0,0.25);
             border-radius: 50%;
-            top: 110%; /* Position below the helicopter */
-            left: 10%;
-            filter: blur(4px);
+            top: 120%;
+            left: 15%;
+            filter: blur(5px);
             z-index: -1;
+            transition: transform 0.05s linear;
         }
 
-        /* POI Marker styling */
+        /* --- POI Markers --- */
         .poi-marker {
             position: absolute;
-            width: 16px;
-            height: 16px;
-            background-color: hsla(50, 100%, 60%, 0.8); /* Bright yellow */
+            width: 24px;
+            height: 24px;
+            background-color: hsla(50, 100%, 60%, 0.8);
             border: 2px solid rgba(255, 255, 255, 0.9);
             border-radius: 50%;
-            transform: translate(-50%, -50%); /* Center on coordinate */
-            box-shadow: 0 0 10px hsla(50, 100%, 70%, 0.7);
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 12px hsla(50, 100%, 70%, 0.8);
             z-index: 5;
-            transition: background-color 0.5s, box-shadow 0.5s;
+            transition: background-color 0.5s, box-shadow 0.5s, transform 0.3s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 12px;
+            font-weight: bold;
+            color: var(--text-dark);
         }
         .poi-marker.visited {
-            background-color: hsla(120, 70%, 50%, 0.8); /* Green */
-            box-shadow: 0 0 12px hsla(120, 70%, 60%, 0.8);
-        }
-        .poi-marker .poi-number {
-             position: absolute;
-             top: 50%;
-             left: 50%;
-             transform: translate(-50%, -50%);
-             color: black;
-             font-size: 10px;
-             font-weight: bold;
+            background-color: var(--success-color);
+            box-shadow: 0 0 15px var(--success-color);
+            transform: translate(-50%, -50%) scale(1.1);
+            color: var(--text-light);
         }
 
-
-        /* Top Info */
-        #info {
-            position: fixed; top: 8px; left: 8px;
-            background-color: rgba(0, 0, 0, 0.75); color: #fff;
-            padding: 6px 10px; border-radius: 4px;
-            font-size: 12px; z-index: 30; pointer-events: none;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        /* --- UI Panels & Modals --- */
+        .ui-panel {
+            position: fixed;
+            background-color: rgba(0, 0, 0, 0.75);
+            color: var(--text-light);
+            padding: 8px 12px;
+            border-radius: 8px;
+            z-index: 30;
+            pointer-events: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            font-size: 14px;
         }
-        #keyboard-controls { display: none; }
-        @media (min-width: 768px) { #keyboard-controls { display: block; } }
-
-        /* Debug Info */
-        #debug-info {
-            position: fixed; bottom: 150px;
-            left: 8px; background-color: rgba(200, 0, 0, 0.8); color: #fff;
-            padding: 5px 8px; border-radius: 3px; font-size: 10px;
-            z-index: 30; display: none; pointer-events: none;
+        #info-hud { top: 10px; left: 10px; }
+        #error-display {
+            bottom: 10px; left: 10px;
+            background-color: var(--danger-color);
+            display: none;
         }
-
-        /* Land Indicator */
         #land-indicator {
-            position: fixed; bottom: 90px;
-            left: 50%; transform: translateX(-50%);
-            background-color: rgba(255, 193, 7, 0.9); color: #000;
-            padding: 6px 12px; border-radius: 4px; font-size: 14px;
-            font-weight: bold; z-index: 20; display: none;
-            text-align: center; pointer-events: none;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            bottom: 90px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--secondary-color);
+            color: var(--text-dark);
+            font-weight: bold;
+            display: none;
         }
 
-        /* Info Panel & Completion Panel */
-        .modal-panel {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(0, 0, 0, 0.9); display: flex;
-            justify-content: center; align-items: center;
-            opacity: 0; visibility: hidden;
-            transition: opacity 0.5s ease-in-out, visibility 0s 0.5s;
-            z-index: 40; pointer-events: none;
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.4s ease, visibility 0s 0.4s;
+            z-index: 40;
+            pointer-events: none;
         }
-        .modal-panel.visible { opacity: 1; visibility: visible; transition-delay: 0s; pointer-events: auto; }
+        .modal-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+            transition-delay: 0s;
+            pointer-events: auto;
+        }
 
         .modal-content {
-            background-color: #e0e0e0; color: #333; padding: 25px; border-radius: 6px;
-            width: 90%; max-width: 600px; max-height: 85%; overflow-y: auto;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4); position: relative;
-            border: 1px solid #bbb;
+            background-color: #f0f0f0;
+            color: var(--text-dark);
+            padding: 25px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+            transform: scale(0.9);
+            transition: transform 0.4s ease;
         }
-        .modal-content h2 { margin-top: 0; color: #111; border-bottom: 1px solid #aaa; padding-bottom: 10px; font-size: 1.3em; }
-        .modal-content p { font-size: 1em; line-height: 1.5; }
+        .modal-overlay.visible .modal-content {
+            transform: scale(1);
+        }
+        .modal-content h2 { margin-top: 0; color: #111; border-bottom: 2px solid #ddd; padding-bottom: 10px; }
+        .modal-content p { line-height: 1.6; }
 
         .modal-button {
-            display: block; margin: 20px auto 0; padding: 12px 25px;
-            font-size: 16px; font-weight: bold; color: #fff;
-            background: linear-gradient(to bottom, #6c757d, #495057);
-            border: 1px solid #888; border-radius: 5px; cursor: pointer;
-            transition: background 0.2s, box-shadow 0.2s;
-            box-shadow: 0 2px 3px rgba(0,0,0,0.2);
+            display: block;
+            margin: 20px auto 0;
+            padding: 12px 30px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #fff;
+            background: var(--primary-color);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
-        .modal-button:hover { background: linear-gradient(to bottom, #80888f, #5a6268); }
-        .modal-button:active { box-shadow: inset 0 1px 3px rgba(0,0,0,0.3); }
+        .modal-button:hover { background: #2980b9; }
+        .modal-button:active { transform: scale(0.97); }
 
-        /* --- Joystick Styling --- */
+        /* --- Controls: Joystick & Buttons --- */
         #joystick-container {
             position: fixed;
-            bottom: 20px; left: 20px; right: auto;
+            bottom: 20px; left: 20px;
             width: 120px; height: 120px;
-            z-index: 35; pointer-events: none;
+            z-index: 35;
         }
         #joystick-base {
-            position: absolute; width: 100%; height: 100%; border-radius: 50%;
-            background: rgba(80, 80, 80, 0.5); border: 2px solid rgba(200, 200, 200, 0.6);
-            box-shadow: inset 0 0 15px rgba(0,0,0,0.3); pointer-events: auto;
+            position: absolute;
+            width: 100%; height: 100%;
+            border-radius: 50%;
+            background: rgba(80, 80, 80, 0.6);
+            border: 2px solid rgba(200, 200, 200, 0.7);
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.4);
         }
         #joystick-handle {
-            position: absolute; width: 60px; height: 60px; border-radius: 50%;
-            background: linear-gradient(to bottom, #5a5a5a, #333); border: 1px solid #777;
-            box-shadow: 0 3px 5px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.1);
-            top: 50%; left: 50%; transform: translate(-50%, -50%);
-            pointer-events: auto; cursor: grab; touch-action: none;
+            position: absolute;
+            width: 60px; height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #555, #333);
+            border: 1px solid #888;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.1);
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            cursor: grab;
+            touch-action: none; /* Prevents page scroll on touch */
         }
-         #joystick-handle:active {
-             cursor: grabbing; background: linear-gradient(to top, #5a5a5a, #333);
-             box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
-         }
+        #joystick-handle:active { cursor: grabbing; }
 
-        /* Land Button Styling */
         #land-button {
             position: fixed;
-            bottom: 20px; right: 20px; left: auto;
-            transform: none;
-            width: 70px; height: 50px; border-radius: 6px;
-            font-size: 16px; font-weight: bold; text-transform: uppercase;
-            background: linear-gradient(to bottom, #ffcc00, #cca300); color: #212529;
-            border: 1px solid #ffeb99;
-            box-shadow: 0 0 0 3px #333, 0 0 0 5px #555, 4px 4px 8px rgba(0,0,0,0.4);
-            display: none; justify-content: center; align-items: center;
-            z-index: 36; pointer-events: auto; user-select: none;
-            -webkit-user-select: none; touch-action: manipulation;
-            transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.08s ease;
+            bottom: 20px; right: 20px;
+            width: 80px; height: 80px;
+            border-radius: 50%;
+            font-size: 16px;
+            font-weight: bold;
+            text-transform: uppercase;
+            background: var(--secondary-color);
+            color: var(--text-dark);
+            border: 3px solid #fff;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+            display: none; /* Initially hidden */
+            justify-content: center;
+            align-items: center;
+            z-index: 36;
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
         }
-         #land-button:active {
-             background: linear-gradient(to top, #ffcc00, #cca300);
-             box-shadow: 0 0 0 3px #333, 0 0 0 5px #555, inset 0 3px 5px rgba(0, 0, 0, 0.3);
-             transform: scale(0.95);
-             color: #000;
-         }
+        #land-button:active {
+            transform: scale(0.95);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+        }
 
-        /* --- POI Checklist Styling --- */
+        /* --- POI Checklist --- */
         #checklist-toggle {
             position: fixed;
-            top: 8px;
-            right: 8px;
-            width: 40px; height: 40px;
-            background: rgba(80, 80, 80, 0.7);
+            top: 10px; right: 10px;
+            width: 44px; height: 44px;
+            background: rgba(80, 80, 80, 0.8);
             border: 1px solid #aaa;
             color: #fff;
-            border-radius: 5px;
+            border-radius: 8px;
             font-size: 24px;
             z-index: 38;
             cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
         #poi-checklist-panel {
             position: fixed;
-            top: 60px;
-            right: 8px;
-            width: 220px;
-            max-height: calc(100vh - 80px);
-            background: rgba(40,40,40,0.95);
+            top: 65px; right: 10px;
+            width: 250px;
+            max-height: calc(100vh - 85px);
+            background: var(--panel-background);
             border: 1px solid #888;
-            border-radius: 5px;
-            color: #fff;
-            padding: 10px;
+            border-radius: 8px;
+            color: var(--text-light);
+            padding: 15px;
             z-index: 37;
             overflow-y: auto;
             transform: translateX(120%);
             transition: transform 0.4s ease-in-out;
         }
-        #poi-checklist-panel.visible {
-            transform: translateX(0);
-        }
-        #poi-checklist-panel h3 { margin-top: 0; text-align: center; }
+        #poi-checklist-panel.visible { transform: translateX(0); }
+        #poi-checklist-panel h3 { margin-top: 0; text-align: center; border-bottom: 1px solid #777; padding-bottom: 10px; }
         #poi-list { list-style: none; padding: 0; margin: 0; font-size: 14px; }
-        #poi-list li { padding: 4px 0; border-bottom: 1px solid #555; }
-        #poi-list li.visited { color: #8cff8c; text-decoration: line-through; }
+        #poi-list li { padding: 6px 2px; border-bottom: 1px solid #555; transition: color 0.3s; }
+        #poi-list li:last-child { border-bottom: none; }
+        #poi-list li.visited { color: var(--success-color); text-decoration: line-through; }
 
-        /* --- Landscape Orientation Styles --- */
-        @media (orientation: landscape) {
-            #joystick-container { left: auto; right: 20px; }
-            #land-button { bottom: 150px; right: 20px; left: auto; transform: none; }
-            #debug-info { bottom: 20px; left: 150px; }
+        /* --- Responsive Adjustments --- */
+        @media (max-width: 768px) {
+            #info-hud { font-size: 12px; }
+            #keyboard-controls-info { display: none; }
         }
-
+        @media (orientation: landscape) and (max-height: 500px) {
+            #joystick-container { left: 20px; bottom: 20px; }
+            #land-button { right: 20px; bottom: 20px; }
+        }
     </style>
 </head>
 <body>
     <!-- UI Elements -->
-    <div id="info">
-        <span id="keyboard-controls">Controls: Arrows (Turn/Thrust), L (Land)<br></span>
-        <span id="land-prompt" style="color: #ffc107; font-weight: bold; display: none;">Press 'L' or Land Button</span><br>
-        Speed: <span id="speed-info">0</span> | Angle: <span id="angle-info">0</span>&deg;
+    <div id="info-hud" class="ui-panel">
+        <div id="keyboard-controls-info">Controls: Arrows (Move), L (Land)</div>
+        <div>Speed: <span id="speed-info">0.0</span> | Angle: <span id="angle-info">0</span>&deg;</div>
+        <div id="land-prompt" style="color: var(--secondary-color); font-weight: bold; display: none;">Ready to Land!</div>
     </div>
-    <div id="debug-info">Map Image Error! Check console (F12).</div>
-    <div id="land-indicator">Nearby: <span id="poi-name">POI</span><br>Press 'L' or Land Button</div>
+    <div id="error-display" class="ui-panel">Map image could not be loaded.</div>
+    <div id="land-indicator" class="ui-panel">Approaching: <span id="poi-name">POI</span></div>
 
     <!-- Map Container -->
     <div id="map-container">
         <div id="map-content">
-            <!-- POI Markers will be injected here by JS -->
-            <img id="map-image" class="loading" src="https://raw.githubusercontent.com/Mikieb1982/HF-Map/main/HF-Map/hoher_flaeming_map.jpg" alt="Hoher Fläming Map">
+            <!-- Map Image will be the background of this div -->
+            <img id="map-image" class="loading" src="https://raw.githubusercontent.com/Mikieb1982/HF-Map/main/HF-Map/hoher_flaeming_map.jpg" alt="Map of the Hoher Fläming region">
             <!-- Helicopter and its shadow -->
             <div id="helicopter-container">
                 <div id="helicopter">🚁</div>
                 <div id="helicopter-shadow"></div>
             </div>
+            <!-- POI Markers will be injected here by JS -->
         </div>
     </div>
 
-    <!-- POI Info Panel -->
-    <div id="info-panel" class="modal-panel">
-        <div id="info-content" class="modal-content">
+    <!-- Modals -->
+    <div id="info-modal" class="modal-overlay">
+        <div class="modal-content">
             <h2 id="info-title">Point of Interest</h2>
-            <p id="info-description">Details about the point of interest...</p>
+            <p id="info-description">Details about the POI...</p>
             <button id="return-button" class="modal-button">Return to Flight</button>
         </div>
     </div>
 
-    <!-- Completion Panel -->
-    <div id="completion-panel" class="modal-panel">
-        <div id="completion-content" class="modal-content">
+    <div id="completion-modal" class="modal-overlay">
+        <div class="modal-content">
             <h2>Mission Complete!</h2>
-            <p>Congratulations! You have visited all 16 points of interest in the Hoher Fläming Nature Park.</p>
+            <p>Congratulations! You have visited all points of interest in the Hoher Fläming Nature Park.</p>
             <button id="restart-button" class="modal-button">Fly Again</button>
         </div>
     </div>
 
-    <!-- Joystick Controls -->
-    <div id="joystick-container">
+    <!-- On-screen Controls -->
+    <div id="joystick-container" aria-hidden="true">
         <div id="joystick-base"></div>
         <div id="joystick-handle"></div>
     </div>
-
-    <!-- Land Button (Separate) -->
-    <button id="land-button" aria-label="Land">Land</button>
-
-    <!-- POI Checklist -->
-    <button id="checklist-toggle">☰</button>
+    <button id="land-button" aria-label="Land Helicopter">Land</button>
+    <button id="checklist-toggle" aria-label="Toggle POI Checklist">☰</button>
+    
     <div id="poi-checklist-panel">
         <h3>POI Checklist</h3>
-        <ul id="poi-list">
-            <!-- List items will be injected here by JS -->
-        </ul>
+        <ul id="poi-list"></ul>
     </div>
 
-
     <script>
-        // --- Element References ---
-        const helicopterContainer = document.getElementById('helicopter-container');
-        const helicopterElement = document.getElementById('helicopter');
-        const mapContainer = document.getElementById('map-container');
-        const mapContent = document.getElementById('map-content');
-        const mapImage = document.getElementById('map-image');
-        const speedInfo = document.getElementById('speed-info');
-        const angleInfo = document.getElementById('angle-info');
-        const debugInfo = document.getElementById('debug-info');
-        const landIndicator = document.getElementById('land-indicator');
-        const landPrompt = document.getElementById('land-prompt');
-        const poiNameSpan = document.getElementById('poi-name');
-        const infoPanel = document.getElementById('info-panel');
-        const infoTitle = document.getElementById('info-title');
-        const infoDescription = document.getElementById('info-description');
-        const returnButton = document.getElementById('return-button');
-        const joystickContainer = document.getElementById('joystick-container');
-        const joystickBase = document.getElementById('joystick-base');
-        const joystickHandle = document.getElementById('joystick-handle');
-        const landButton = document.getElementById('land-button');
-        const checklistToggle = document.getElementById('checklist-toggle');
-        const poiChecklistPanel = document.getElementById('poi-checklist-panel');
-        const poiList = document.getElementById('poi-list');
-        const completionPanel = document.getElementById('completion-panel');
-        const restartButton = document.getElementById('restart-button');
+    /* ========================================
+    JAVASCRIPT LOGIC
+    - In a larger project, this would be in a separate script.js file.
+    ========================================
+    */
+    (function() { // IIFE to encapsulate the game and avoid global scope pollution
+        'use strict';
 
-        console.log("Script starting...");
+        // --- DOM Element References ---
+        const dom = {
+            helicopterContainer: document.getElementById('helicopter-container'),
+            helicopter: document.getElementById('helicopter'),
+            mapContainer: document.getElementById('map-container'),
+            mapContent: document.getElementById('map-content'),
+            mapImage: document.getElementById('map-image'),
+            speedInfo: document.getElementById('speed-info'),
+            angleInfo: document.getElementById('angle-info'),
+            errorDisplay: document.getElementById('error-display'),
+            landIndicator: document.getElementById('land-indicator'),
+            landPrompt: document.getElementById('land-prompt'),
+            poiName: document.getElementById('poi-name'),
+            infoModal: document.getElementById('info-modal'),
+            infoTitle: document.getElementById('info-title'),
+            infoDescription: document.getElementById('info-description'),
+            returnButton: document.getElementById('return-button'),
+            completionModal: document.getElementById('completion-modal'),
+            restartButton: document.getElementById('restart-button'),
+            joystickContainer: document.getElementById('joystick-container'),
+            joystickBase: document.getElementById('joystick-base'),
+            joystickHandle: document.getElementById('joystick-handle'),
+            landButton: document.getElementById('land-button'),
+            checklistToggle: document.getElementById('checklist-toggle'),
+            poiChecklistPanel: document.getElementById('poi-checklist-panel'),
+            poiList: document.getElementById('poi-list')
+        };
 
-        // --- Audio Setup (Tone.js) ---
-        let audioReady = false;
-        let engineSound, landingSound, clickSound;
+        // --- Game Configuration ---
+        const config = {
+            MAP_WIDTH: 2048,
+            MAP_HEIGHT: 1448,
+            START_X: 1364, // Bad Belzig
+            START_Y: 603,
+            TURN_RATE: 3.0,
+            THRUST_POWER: 0.15,
+            MAX_SPEED: 5.0,
+            DRAG: 0.98,
+            LANDING_ZONE_DRAG: 0.85,
+            MIN_SPEED_TO_MOVE: 0.05,
+            LANDING_RADIUS: 60,
+        };
 
-        function setupAudio() {
-            // Helicopter engine: A filtered noise loop
-            engineSound = new Tone.Noise("pink").start();
-            const filter = new Tone.AutoFilter({
-                frequency: "8n",
-                baseFrequency: 100,
-                octaves: 4
-            }).toDestination();
-            engineSound.connect(filter);
-            engineSound.volume.value = -30; // Start very quiet
-
-            // Landing sound: A simple synth pluck
-            landingSound = new Tone.Synth({
-                oscillator: { type: "sine" },
-                envelope: { attack: 0.01, decay: 0.3, sustain: 0.1, release: 0.5 }
-            }).toDestination();
-
-            // UI Click sound
-            clickSound = new Tone.Synth({
-                oscillator: { type: "triangle" },
-                envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 }
-            }).toDestination();
-            clickSound.volume.value = -10;
-
-            audioReady = true;
-            console.log("Audio components initialized.");
-        }
-
-        // --- Configuration ---
-        const MAP_WIDTH = 2048; const MAP_HEIGHT = 1448;
-        const startX = 1364; const startY = 603; // Bad Belzig
-        const turnRate = 3.0;
-        const forwardThrustPower = 0.15;
-        const maxSpeed = 5.0;
-        const normalDrag = 0.98;
-        const landingZoneDrag = 0.85;
-        const minSpeed = 0.05;
-        const landingRadius = 60;
-        let joystickMaxRadius = 0;
-
-        // --- POI Data (with 'visited' property) ---
-        const pointsOfInterest = [
-            { id: 1, name: "Stadt und Burg Ziesar", x: 470, y: 150, visited: false, description: "Burg Ziesar is one of Brandenburg's few preserved bishop's residences. This lowland castle features a museum showcasing medieval church and cultural history. Its chapel, once used by Huguenots, holds well-preserved medieval paintings." },
-            { id: 2, name: "Gutspark Dahlen", x: 708, y: 357, visited: false, description: "Gutspark Dahlen is a dendrologically significant park in Hoher Fläming, designed in the English style since 1840. It offers historic vistas, pond areas, and impressive blossoms in spring, managed by a local friends' association." },
-            { id: 3, name: "Klein Briesener Bach", x: 998, y: 181, visited: false, description: "The Klein Briesener Bach is a small stream originating near Groß Briesen, flowing northwest into the Verlorenwasser. It's the longest tributary of the Verlorenwasser and is part of several protected areas within the Hoher Fläming Nature Park." },
-            { id: 4, name: "Paradies Dippmannsdorf", x: 1322, y: 265, visited: false, description: "Known for the 'Dippmannsdorfer Paradies' restaurant, this area offers good German cuisine with views of green landscapes. A nearby nature reserve, also called 'Das Paradies', features a headwater with over 30 springs, perfect for a walk." },
-            { id: 5, name: "Töpferort Görzke", x: 416, y: 439, visited: false, description: "Görzke is a traditional pottery village. Visitors can explore local potteries, each with unique patterns, and visit the Crafts Museum. The Töpferwanderweg (Pottery Hiking Trail) offers scenic views of the Buckau lowlands." },
-            { id: 6, name: "Hagelberg", x: 946, y: 719, visited: false, description: "Hagelberg is known for the Battle of Hagelberg in 1813, a significant event during the Napoleonic Wars. A monument commemorates this historical site. It's a key point in the Hoher Fläming region's history." },
-            { id: 7, name: "Bad Belzig mit Burg Eisenhardt", x: 1364, y: 603, visited: false, description: "Bad Belzig is home to Burg Eisenhardt, a historic castle with a building history spanning 3,000 years. The castle features a local history museum and its tower, the 'Butterturm', offers panoramic views of the town and Fläming landscape." },
-            { id: 8, name: "Aussichtspunkt Belziger Landschaftswiesen", x: 1616, y: 501, visited: false, description: "This viewpoint offers impressive views of the Belziger Landschaftswiesen, a 41 square kilometer lowland area and an important bird sanctuary. It's a crucial habitat for meadow breeders and great bustards, especially in winter when thousands of geese and ducks visit." },
-            { id: 9, name: "Wiesenburg mit Schloss und Park", x: 836, y: 843, visited: false, description: "Wiesenburg features a picturesque castle and park, one of the most dendrologically significant sites in Hoher Fläming. The park, designed in the English style, is publicly accessible and offers beautiful walks around its three ponds." },
-            { id: 10, name: "Naturparkzentrum Hoher Fläming", x: 1170, y: 1231, visited: false, description: "The Hoher Fläming Nature Park Center in Raben is the main information hub for visitors. It provides insights into the park's diverse landscape of meadows, forests, and historic villages, and offers details on hiking routes and events." },
-            { id: 11, name: "Raben mit Burg Rabenstein", x: 1124, y: 1329, visited: false, description: "Burg Rabenstein is arguably the most important castle in Hoher Fläming, serving historically as a border castle between Brandenburg and Saxony. Visitors can explore the castle grounds and enjoy guided tours of the tower." },
-            { id: 12, name: "Niemegk", x: 1624, y: 1135, visited: false, description: "Niemegk is a town in the Hoher Fläming region. It's part of the 'Wegweiser Hoher Fläming' initiative, an online platform providing information on local schools, associations, regional products, and cultural activities." },
-            { id: 13, name: "Flämingbuchen", x: 654, y: 1171, visited: false, description: "The Flämingbuchen are unique beech tree islands within the Brandtsheide forest. These beeches are genetically distinct, and their seeds are used for new plantings. The area is known for its lush blueberry forests." },
-            { id: 14, name: "Brautrummel mit Riesenstein", x: 1110, y: 1023, visited: false, description: "The Brautrummel is a periglacial dry valley in Hoher Fläming, a natural monument. It features a walkable wooden sculpture titled 'Ein Feldbett für den Fläming' and is part of a scenic circular hiking trail leading to the 'Riesenstein' (Giant Stone)." },
-            { id: 15, name: "Neuendorfer Rummel", x: 1482, y: 1309, visited: false, description: "The Neuendorfer Rummel is one of the deep, narrow dry valleys (Rummeln) formed by the Ice Age in the nature park. These valleys are densely forested and offer a unique hiking experience, leading visitors into their own small world." },
-            { id: 16, name: "Garrey mit Aussichtsplattform", x: 1494, y: 1427, visited: false, description: "Garrey features an observation deck at the former 'Altes Wasserwerk' (old waterworks). The site includes a small petting zoo with donkeys, goats, and mountain sheep, and the observation platform is always accessible, offering scenic views." }
+        // --- POI Data ---
+        // In a real application, this would be loaded from a JSON file.
+        const pointsOfInterestData = [
+            { id: 1, name: "Stadt und Burg Ziesar", x: 470, y: 150, description: "Burg Ziesar is one of Brandenburg's few preserved bishop's residences. This lowland castle features a museum showcasing medieval church and cultural history." },
+            { id: 2, name: "Gutspark Dahlen", x: 708, y: 357, description: "Gutspark Dahlen is a dendrologically significant park in Hoher Fläming, designed in the English style since 1840. It offers historic vistas and impressive blossoms." },
+            { id: 3, name: "Klein Briesener Bach", x: 998, y: 181, description: "The Klein Briesener Bach is a small stream originating near Groß Briesen, part of several protected areas within the Hoher Fläming Nature Park." },
+            { id: 4, name: "Paradies Dippmannsdorf", x: 1322, y: 265, description: "A nearby nature reserve, also called 'Das Paradies', features a headwater with over 30 springs, perfect for a walk." },
+            { id: 5, name: "Töpferort Görzke", x: 416, y: 439, description: "Görzke is a traditional pottery village. Visitors can explore local potteries and visit the Crafts Museum." },
+            { id: 6, name: "Hagelberg", x: 946, y: 719, description: "Hagelberg is known for the Battle of Hagelberg in 1813, a significant event during the Napoleonic Wars. A monument commemorates this historical site." },
+            { id: 7, name: "Bad Belzig mit Burg Eisenhardt", x: 1364, y: 603, description: "Bad Belzig is home to Burg Eisenhardt, a historic castle. Its tower, the 'Butterturm', offers panoramic views." },
+            { id: 8, name: "Aussichtspunkt Belziger Landschaftswiesen", x: 1616, y: 501, description: "This viewpoint offers impressive views of the Belziger Landschaftswiesen, an important bird sanctuary and crucial habitat for great bustards." },
+            { id: 9, name: "Wiesenburg mit Schloss und Park", x: 836, y: 843, description: "Wiesenburg features a picturesque castle and one of the most dendrologically significant parks in the region, designed in the English style." },
+            { id: 10, name: "Naturparkzentrum Hoher Fläming", x: 1170, y: 1231, description: "The Hoher Fläming Nature Park Center in Raben is the main information hub for visitors, offering details on hiking routes and events." },
+            { id: 11, name: "Raben mit Burg Rabenstein", x: 1124, y: 1329, description: "Burg Rabenstein is arguably the most important castle in Hoher Fläming, serving historically as a border castle between Brandenburg and Saxony." },
+            { id: 12, name: "Niemegk", x: 1624, y: 1135, description: "Niemegk is a historic town in the Hoher Fläming region, part of an initiative providing information on local culture and products." },
+            { id: 13, name: "Flämingbuchen", x: 654, y: 1171, description: "The Flämingbuchen are unique beech tree islands within the Brandtsheide forest, known for their lush blueberry patches." },
+            { id: 14, name: "Brautrummel mit Riesenstein", x: 1110, y: 1023, description: "The Brautrummel is a periglacial dry valley and natural monument, featuring a scenic circular hiking trail leading to the 'Riesenstein' (Giant Stone)." },
+            { id: 15, name: "Neuendorfer Rummel", x: 1482, y: 1309, description: "The Neuendorfer Rummel is one of the deep, narrow dry valleys (Rummeln) formed by the Ice Age, offering a unique hiking experience." },
+            { id: 16, name: "Garrey mit Aussichtsplattform", x: 1494, y: 1427, description: "Garrey features an observation deck at the former 'Altes Wasserwerk' (old waterworks) with a small petting zoo and scenic views." }
         ];
 
         // --- Game State ---
-        let helicopterState = { x: startX, y: startY, angle: -90, speed: 0 };
-        let joystickState = { active: false, targetAngle: -90, magnitude: 0 };
-        let lastTimestamp = 0; let gameReady = false; let currentNearbyPOI = null; let gameState = 'FLYING';
+        let state = {};
+        function resetState() {
+             state = {
+                helicopter: { x: config.START_X, y: config.START_Y, angle: -90, speed: 0 },
+                joystick: { active: false, targetAngle: -90, magnitude: 0, touchId: null, maxRadius: 0, baseRect: {} },
+                keys: new Set(),
+                gameStatus: 'LOADING', // LOADING, FLYING, NEAR_POI, SHOWING_INFO, COMPLETE
+                lastTimestamp: 0,
+                currentNearbyPOI: null,
+                audio: { contextReady: false, engine: null, landing: null, click: null },
+                pois: JSON.parse(JSON.stringify(pointsOfInterestData)).map(p => ({...p, visited: false }))
+            };
+        }
 
-        // --- Initial Setup Functions ---
-        function initializeGame() {
-            // Create POI markers on the map and in the checklist
-            mapContent.innerHTML = ''; // Clear any previous markers
-            poiList.innerHTML = '';
-            pointsOfInterest.forEach(poi => {
-                // Create map marker
+        // --- Audio Setup ---
+        function setupAudio() {
+            if (state.audio.contextReady) return;
+            state.audio.engine = new Tone.Noise("pink").start();
+            const filter = new Tone.AutoFilter({ frequency: "8n", baseFrequency: 100, octaves: 4 }).toDestination();
+            state.audio.engine.connect(filter);
+            state.audio.engine.volume.value = -35;
+
+            state.audio.landing = new Tone.Synth({ oscillator: { type: "sine" }, envelope: { attack: 0.01, decay: 0.3, sustain: 0.1, release: 0.5 } }).toDestination();
+            state.audio.click = new Tone.Synth({ oscillator: { type: "triangle" }, envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 } }).toDestination();
+            state.audio.click.volume.value = -10;
+            
+            state.audio.contextReady = true;
+        }
+        
+        function playClickSound() {
+            if (state.audio.contextReady) state.audio.click.triggerAttackRelease("C5", "8n");
+        }
+
+        // --- Initialization ---
+        function init() {
+            resetState();
+            setupDOM();
+            addEventListeners();
+            
+            dom.mapImage.onload = () => {
+                dom.errorDisplay.style.display = 'none';
+                dom.mapImage.classList.remove('loading', 'error');
+                state.gameStatus = 'FLYING';
+                calculateJoystickRadius();
+                centerViewOnHelicopter();
+                requestAnimationFrame(gameLoop);
+            };
+            dom.mapImage.onerror = () => {
+                dom.errorDisplay.style.display = 'block';
+                dom.mapImage.classList.add('error');
+                state.gameStatus = 'ERROR';
+            };
+            // Handle cached images that might be already 'complete'
+            if (dom.mapImage.complete) dom.mapImage.onload();
+        }
+
+        function setupDOM() {
+            // Clear previous state
+            const markers = dom.mapContent.querySelectorAll('.poi-marker');
+            markers.forEach(m => m.remove());
+            dom.poiList.innerHTML = '';
+
+            // Create POI markers and checklist items
+            state.pois.forEach(poi => {
                 const marker = document.createElement('div');
                 marker.className = 'poi-marker';
                 marker.id = `marker-${poi.id}`;
                 marker.style.left = `${poi.x}px`;
                 marker.style.top = `${poi.y}px`;
-                const numberSpan = document.createElement('span');
-                numberSpan.className = 'poi-number';
-                numberSpan.textContent = poi.id;
-                marker.appendChild(numberSpan);
-                mapContent.appendChild(marker);
+                marker.textContent = poi.id;
+                dom.mapContent.appendChild(marker);
 
-                // Create checklist item
                 const listItem = document.createElement('li');
                 listItem.id = `checklist-item-${poi.id}`;
                 listItem.textContent = `${poi.id}. ${poi.name}`;
-                poiList.appendChild(listItem);
+                dom.poiList.appendChild(listItem);
             });
-            // Re-add the map image and helicopter container
-            mapContent.appendChild(mapImage);
-            mapContent.appendChild(helicopterContainer);
         }
 
-        // --- Image Loading Check ---
-        mapImage.onload = () => { console.log("DEBUG: mapImage.onload fired!"); debugInfo.style.display = 'none'; mapImage.classList.remove('loading', 'error'); gameReady = true; console.log("DEBUG: gameReady set to true."); calculateJoystickRadius(); centerViewOnHelicopter(); };
-        mapImage.onerror = () => { console.error("DEBUG: mapImage.onerror fired!"); debugInfo.textContent = "Error loading map image!"; debugInfo.style.display = 'block'; mapImage.classList.remove('loading'); mapImage.classList.add('error'); gameReady = false; };
-        if (mapImage.complete && mapImage.naturalWidth > 0) { mapImage.onload(); } else if (mapImage.complete) { mapImage.onerror(); } else { console.log("DEBUG: Image not yet complete."); }
+        // --- Event Listeners ---
+        function addEventListeners() {
+            // Keyboard
+            document.addEventListener('keydown', handleKeyDown);
+            document.addEventListener('keyup', handleKeyUp);
 
-        // --- Keyboard Control Listeners (Simplified for testing) ---
-        document.addEventListener('keydown', (event) => { if (gameState === 'SHOWING_INFO' || gameState === 'COMPLETE') return; if ((event.key === 'l' || event.key === 'L') && gameState === 'NEAR_POI' && currentNearbyPOI) { event.preventDefault(); landAndShowInfo(currentNearbyPOI); return; } switch (event.key) { case 'ArrowLeft': joystickState.targetAngle = (joystickState.targetAngle - 5 + 360) % 360; joystickState.active = true; break; case 'ArrowRight': joystickState.targetAngle = (joystickState.targetAngle + 5) % 360; joystickState.active = true; break; case 'ArrowUp': joystickState.magnitude = Math.min(1, joystickState.magnitude + 0.1); joystickState.active = true; break; case 'ArrowDown': joystickState.magnitude = Math.max(0, joystickState.magnitude - 0.1); joystickState.active = true; break; } });
-
-        // --- Joystick Touch Listeners ---
-        let joystickActiveTouchId = null;
-        let baseRect, baseCenterX, baseCenterY;
-
-        function calculateJoystickRadius() { if(joystickBase && joystickHandle) { joystickMaxRadius = joystickBase.offsetWidth / 2 - joystickHandle.offsetWidth / 2; baseRect = joystickBase.getBoundingClientRect(); baseCenterX = baseRect.left + baseRect.width / 2; baseCenterY = baseRect.top + baseRect.height / 2; } else { joystickMaxRadius = 50; } }
-        function handleJoystickTouch(event) {
-            if (gameState === 'SHOWING_INFO' || gameState === 'COMPLETE' || !joystickMaxRadius) return;
-            // Start audio on first interaction
-            if (!audioReady) {
-                Tone.start().then(setupAudio);
-            }
-            event.preventDefault();
-            for (let i = 0; i < event.changedTouches.length; i++) {
-                let touch = event.changedTouches[i];
-                if (event.type === 'touchstart') { if (joystickActiveTouchId === null && (touch.target === joystickHandle || touch.target === joystickBase)) { joystickActiveTouchId = touch.identifier; joystickState.active = true; updateJoystick(touch.clientX, touch.clientY); } }
-                else if (event.type === 'touchmove') { if (touch.identifier === joystickActiveTouchId) updateJoystick(touch.clientX, touch.clientY); }
-                else if (event.type === 'touchend' || event.type === 'touchcancel') { if (touch.identifier === joystickActiveTouchId) { joystickActiveTouchId = null; joystickState.active = false; joystickState.magnitude = 0; joystickHandle.style.transform = `translate(-50%, -50%)`; joystickHandle.style.left = `50%`; joystickHandle.style.top = `50%`; } }
-            }
+            // Touch (Joystick)
+            document.addEventListener('touchstart', handleJoystickTouch, { passive: false });
+            document.addEventListener('touchmove', handleJoystickTouch, { passive: false });
+            document.addEventListener('touchend', handleJoystickTouch, { passive: false });
+            document.addEventListener('touchcancel', handleJoystickTouch, { passive: false });
+            
+            // UI Buttons
+            dom.returnButton.addEventListener('click', hideInfoAndResumeFlight);
+            dom.landButton.addEventListener('click', landAtPOI);
+            dom.checklistToggle.addEventListener('click', toggleChecklist);
+            dom.restartButton.addEventListener('click', restartGame);
+            
+            // Window resize
+            window.addEventListener('resize', calculateJoystickRadius);
         }
-        function updateJoystick(touchX, touchY) { let deltaX = touchX - baseCenterX; let deltaY = touchY - baseCenterY; let angleRad = Math.atan2(deltaY, deltaX); joystickState.targetAngle = angleRad * (180 / Math.PI); let distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY); let clampedDistance = Math.min(distance, joystickMaxRadius); joystickState.magnitude = joystickMaxRadius > 0 ? (clampedDistance / joystickMaxRadius) : 0; let handleX = (Math.cos(angleRad) * clampedDistance); let handleY = (Math.sin(angleRad) * clampedDistance); joystickHandle.style.left = `calc(50% + ${handleX}px)`; joystickHandle.style.top = `calc(50% + ${handleY}px)`; joystickHandle.style.transform = `translate(-50%, -50%)`; }
-        document.addEventListener('touchstart', handleJoystickTouch, { passive: false }); document.addEventListener('touchmove', handleJoystickTouch, { passive: false }); document.addEventListener('touchend', handleJoystickTouch, { passive: false }); document.addEventListener('touchcancel', handleJoystickTouch, { passive: false }); window.addEventListener('resize', calculateJoystickRadius);
-
-        // --- UI Button Listeners ---
-        returnButton.addEventListener('click', () => { if(audioReady) clickSound.triggerAttackRelease("C5", "8n"); hideInfoAndResumeFlight(); });
-        landButton.addEventListener('touchstart', (event) => { event.preventDefault(); if (gameState === 'NEAR_POI' && currentNearbyPOI) landAndShowInfo(currentNearbyPOI); }, { passive: false });
-        landButton.addEventListener('click', () => { if(audioReady) clickSound.triggerAttackRelease("C5", "8n"); if (gameState === 'NEAR_POI' && currentNearbyPOI) landAndShowInfo(currentNearbyPOI); });
-        checklistToggle.addEventListener('click', () => { poiChecklistPanel.classList.toggle('visible'); });
-        restartButton.addEventListener('click', () => { location.reload(); }); // Simple restart
 
         // --- Game Loop ---
-        function gameLoop(timestamp) { if (!lastTimestamp) lastTimestamp = timestamp; const deltaTime = (timestamp - lastTimestamp) / (1000 / 60); lastTimestamp = timestamp; if (gameReady && gameState !== 'SHOWING_INFO' && gameState !== 'COMPLETE') { update(deltaTime); render(); centerViewOnHelicopter(); } requestAnimationFrame(gameLoop); }
+        function gameLoop(timestamp) {
+            if (!state.lastTimestamp) state.lastTimestamp = timestamp;
+            const deltaTime = (timestamp - state.lastTimestamp) / (1000 / 60); // Normalize to 60fps
+            state.lastTimestamp = timestamp;
+
+            const running = state.gameStatus === 'FLYING' || state.gameStatus === 'NEAR_POI';
+            if (running) {
+                update(deltaTime);
+                render();
+                centerViewOnHelicopter();
+            }
+            requestAnimationFrame(gameLoop);
+        }
 
         // --- Update Logic ---
         function update(dt) {
-            let wasNearPOI = (gameState === 'NEAR_POI');
-            let foundNearbyPOI = null;
-            for (const poi of pointsOfInterest) {
-                if (!poi.visited && Math.sqrt(Math.pow(helicopterState.x - poi.x, 2) + Math.pow(helicopterState.y - poi.y, 2)) < landingRadius) {
-                    foundNearbyPOI = poi;
-                    break;
-                }
-            }
+            handleInput(dt);
+            updateHelicopterPosition(dt);
+            checkProximityToPOIs();
+            updateAudio();
+        }
+        
+        function handleInput(dt) {
+            // Keyboard input
+            if (state.keys.has('ArrowUp')) state.joystick.magnitude = Math.min(1, state.joystick.magnitude + 0.05);
+            if (state.keys.has('ArrowDown')) state.joystick.magnitude = Math.max(0, state.joystick.magnitude - 0.05);
+            if (state.keys.has('ArrowLeft')) state.helicopter.angle = (state.helicopter.angle - config.TURN_RATE * dt + 360) % 360;
+            if (state.keys.has('ArrowRight')) state.helicopter.angle = (state.helicopter.angle + config.TURN_RATE * dt) % 360;
 
-            if (foundNearbyPOI) {
-                if (!wasNearPOI) console.log(`DEBUG: Entering landing zone for POI ${foundNearbyPOI.id}`);
-                gameState = 'NEAR_POI';
-                currentNearbyPOI = foundNearbyPOI;
-            } else {
-                if (wasNearPOI) console.log("DEBUG: Exiting landing zone");
-                if (gameState !== 'SHOWING_INFO') {
-                    gameState = 'FLYING';
-                    currentNearbyPOI = null;
-                }
-            }
-
-            if (joystickState.active) {
-                let currentAngle = helicopterState.angle;
-                let targetAngle = joystickState.targetAngle;
-                let angleDiff = targetAngle - currentAngle;
+            // Joystick input
+            if (state.joystick.active) {
+                let angleDiff = state.joystick.targetAngle - state.helicopter.angle;
                 while (angleDiff <= -180) angleDiff += 360;
                 while (angleDiff > 180) angleDiff -= 360;
-                let turnAmount = turnRate * dt;
+                
+                let turnAmount = config.TURN_RATE * 2 * dt; // Faster turning with joystick
                 if (Math.abs(angleDiff) < turnAmount) {
-                    helicopterState.angle = targetAngle;
+                    state.helicopter.angle = state.joystick.targetAngle;
                 } else {
-                    helicopterState.angle += (angleDiff > 0 ? 1 : -1) * turnAmount;
-                }
-                helicopterState.angle = (helicopterState.angle + 360) % 360;
-            }
-
-            let acceleration = 0;
-            if (joystickState.active) {
-                acceleration += forwardThrustPower * joystickState.magnitude;
-            }
-            helicopterState.speed += acceleration * dt;
-
-            const currentDrag = (gameState === 'NEAR_POI') ? landingZoneDrag : normalDrag;
-            helicopterState.speed *= Math.pow(currentDrag, dt);
-
-            if (helicopterState.speed < minSpeed && !joystickState.active) {
-                if (gameState !== 'NEAR_POI' || helicopterState.speed < 0.01) { // Allow slight movement in landing zone
-                    helicopterState.speed = 0;
+                    state.helicopter.angle += (angleDiff > 0 ? 1 : -1) * turnAmount;
                 }
             }
-            helicopterState.speed = Math.max(0, Math.min(helicopterState.speed, maxSpeed));
+        }
+        
+        function updateHelicopterPosition(dt) {
+            let acceleration = config.THRUST_POWER * state.joystick.magnitude;
+            state.helicopter.speed += acceleration * dt;
 
-            const angleRad = helicopterState.angle * (Math.PI / 180);
-            const vx = Math.cos(angleRad) * helicopterState.speed;
-            const vy = Math.sin(angleRad) * helicopterState.speed;
+            const currentDrag = (state.gameStatus === 'NEAR_POI') ? config.LANDING_ZONE_DRAG : config.DRAG;
+            state.helicopter.speed *= Math.pow(currentDrag, dt);
 
-            helicopterState.x += vx * dt;
-            helicopterState.y += vy * dt;
+            if (state.helicopter.speed < config.MIN_SPEED_TO_MOVE && state.joystick.magnitude === 0) {
+                state.helicopter.speed = 0;
+            }
+            state.helicopter.speed = Math.max(0, Math.min(state.helicopter.speed, config.MAX_SPEED));
 
-            // Clamp helicopter position to map boundaries
-            helicopterState.x = Math.max(0, Math.min(MAP_WIDTH, helicopterState.x));
-            helicopterState.y = Math.max(0, Math.min(MAP_HEIGHT, helicopterState.y));
+            const angleRad = state.helicopter.angle * (Math.PI / 180);
+            state.helicopter.x += Math.cos(angleRad) * state.helicopter.speed * dt;
+            state.helicopter.y += Math.sin(angleRad) * state.helicopter.speed * dt;
 
-            if (gameState === 'NEAR_POI') {
-                poiNameSpan.textContent = currentNearbyPOI.name;
-                landIndicator.style.display = 'block';
-                landPrompt.style.display = 'inline';
-                landButton.style.display = 'flex';
-                joystickContainer.style.display = 'block'; // Keep joystick visible when near POI
-            } else if (gameState === 'FLYING') {
-                landIndicator.style.display = 'none';
-                landPrompt.style.display = 'none';
-                landButton.style.display = 'none';
-                currentNearbyPOI = null;
+            // Clamp position to map boundaries
+            state.helicopter.x = Math.max(0, Math.min(config.MAP_WIDTH, state.helicopter.x));
+            state.helicopter.y = Math.max(0, Math.min(config.MAP_HEIGHT, state.helicopter.y));
+        }
+        
+        function checkProximityToPOIs() {
+            const wasNearPOI = (state.gameStatus === 'NEAR_POI');
+            let foundNearbyPOI = null;
+            for (const poi of state.pois) {
+                if (!poi.visited) {
+                    const distance = Math.sqrt(Math.pow(state.helicopter.x - poi.x, 2) + Math.pow(state.helicopter.y - poi.y, 2));
+                    if (distance < config.LANDING_RADIUS) {
+                        foundNearbyPOI = poi;
+                        break;
+                    }
+                }
+            }
+            
+            if (foundNearbyPOI) {
+                state.gameStatus = 'NEAR_POI';
+                state.currentNearbyPOI = foundNearbyPOI;
+                if (!wasNearPOI) { // Just entered the zone
+                    dom.poiName.textContent = foundNearbyPOI.name;
+                    dom.landIndicator.style.display = 'block';
+                    dom.landPrompt.style.display = 'block';
+                    dom.landButton.style.display = 'flex';
+                }
+            } else {
+                if (wasNearPOI) { // Just left the zone
+                    dom.landIndicator.style.display = 'none';
+                    dom.landPrompt.style.display = 'none';
+                    dom.landButton.style.display = 'none';
+                }
+                state.gameStatus = 'FLYING';
+                state.currentNearbyPOI = null;
             }
         }
 
-        // --- Render Logic ---
+        // --- Render & UI Update Logic ---
         function render() {
-            helicopterContainer.style.left = `${helicopterState.x}px`;
-            helicopterContainer.style.top = `${helicopterState.y}px`;
-            const visualAngle = helicopterState.angle + 90; // Adjust for emoji orientation
-            helicopterContainer.style.transform = `translate(-50%, 0%) rotate(${visualAngle}deg)`;
+            dom.helicopterContainer.style.transform = `translate(${state.helicopter.x}px, ${state.helicopter.y}px)`;
+            const visualAngle = state.helicopter.angle + 90; // Adjust for emoji orientation
+            dom.helicopter.style.transform = `rotate(${visualAngle}deg)`;
 
-            speedInfo.textContent = helicopterState.speed.toFixed(2);
-            let displayAngle = Math.round((helicopterState.angle + 90 + 360) % 360); // Normalize to 0-360
-            angleInfo.textContent = `${displayAngle}°`;
-
-            // Update audio based on state
-            if (audioReady) {
-                const speedRatio = helicopterState.speed / maxSpeed;
-                engineSound.volume.value = -30 + (speedRatio * 25); // from -30dB to -5dB
-                engineSound.volume.rampTo(engineSound.volume.value, 0.1);
-                engineSound.playbackRate = 1 + speedRatio;
-            }
+            dom.speedInfo.textContent = state.helicopter.speed.toFixed(1);
+            dom.angleInfo.textContent = `${Math.round((visualAngle + 360) % 360)}`;
+        }
+        
+        function updateAudio() {
+            if (!state.audio.contextReady) return;
+            const speedRatio = state.helicopter.speed / config.MAX_SPEED;
+            const targetVolume = -35 + (speedRatio * 30); // from -35dB to -5dB
+            state.audio.engine.volume.rampTo(targetVolume, 0.1);
+            state.audio.engine.playbackRate = 1 + speedRatio * 0.5;
         }
 
-        // --- Map Scrolling Function ---
         function centerViewOnHelicopter() {
-            const scrollX = helicopterState.x - mapContainer.clientWidth / 2;
-            const scrollY = helicopterState.y - mapContainer.clientHeight / 2;
-            mapContainer.scrollTo({ left: scrollX, top: scrollY, behavior: 'auto' });
+            const scrollX = state.helicopter.x - dom.mapContainer.clientWidth / 2;
+            const scrollY = state.helicopter.y - dom.mapContainer.clientHeight / 2;
+            dom.mapContainer.scrollTo({ left: scrollX, top: scrollY, behavior: 'auto' });
         }
+        
+        // --- Game Actions ---
+        function landAtPOI() {
+            if (state.gameStatus !== 'NEAR_POI' || !state.currentNearbyPOI) return;
+            
+            state.gameStatus = 'SHOWING_INFO';
+            if (state.audio.contextReady) state.audio.landing.triggerAttackRelease("A3", "4n");
 
-        // --- Landing and Info Panel Functions ---
-        function landAndShowInfo(poi) {
-            gameState = 'SHOWING_INFO';
-            if(audioReady) landingSound.triggerAttackRelease("A3", "4n");
-            currentNearbyPOI = poi;
-            helicopterState.speed = 0; // Stop helicopter movement
-            joystickState.active = false;
-            joystickState.magnitude = 0;
-            joystickHandle.style.transform = `translate(-50%, -50%)`;
-            joystickHandle.style.left = `50%`;
-            joystickHandle.style.top = `50%`;
-            joystickActiveTouchId = null; // Release any active joystick touch
-
+            state.helicopter.speed = 0;
+            state.joystick.magnitude = 0;
+            
             // Hide flight UI
-            landIndicator.style.display = 'none';
-            landPrompt.style.display = 'none';
-            landButton.style.display = 'none';
-            joystickContainer.style.display = 'none';
+            dom.landIndicator.style.display = 'none';
+            dom.landPrompt.style.display = 'none';
+            dom.landButton.style.display = 'none';
+            dom.joystickContainer.style.display = 'none';
 
-            // Mark POI as visited
+            const poi = state.currentNearbyPOI;
             if (!poi.visited) {
                 poi.visited = true;
                 document.getElementById(`marker-${poi.id}`).classList.add('visited');
@@ -609,44 +693,120 @@
                 checkCompletion();
             }
 
-            // Show info panel
-            infoTitle.textContent = `${poi.id}. ${poi.name}`;
-            infoDescription.innerHTML = poi.description.replace(/\n/g, '<br>'); // Replace newlines with <br> for HTML display
-            infoPanel.classList.add('visible');
+            // Show info modal
+            dom.infoTitle.textContent = `${poi.id}. ${poi.name}`;
+            dom.infoDescription.textContent = poi.description;
+            dom.infoModal.classList.add('visible');
         }
 
         function hideInfoAndResumeFlight() {
-            if (!currentNearbyPOI) return; // Should not happen if called correctly
-            infoPanel.classList.remove('visible');
-            joystickContainer.style.display = 'block'; // Show joystick again
-            // Optionally reposition helicopter slightly after landing, or keep it at POI
-            helicopterState.x = currentNearbyPOI.x;
-            helicopterState.y = currentNearbyPOI.y;
-            helicopterState.speed = 0; // Ensure speed is zero when resuming from POI
-            centerViewOnHelicopter(); // Recenter view
-            gameState = 'FLYING'; // Resume flight state
-            calculateJoystickRadius(); // Recalculate in case of resize
+            playClickSound();
+            dom.infoModal.classList.remove('visible');
+            dom.joystickContainer.style.display = 'block';
+            state.gameStatus = 'FLYING';
+            calculateJoystickRadius(); // Recalculate in case of resize while modal was open
         }
-
+        
         function checkCompletion() {
-            const allVisited = pointsOfInterest.every(p => p.visited);
+            const allVisited = state.pois.every(p => p.visited);
             if (allVisited) {
-                console.log("Mission Complete!");
-                gameState = 'COMPLETE';
+                state.gameStatus = 'COMPLETE';
                 setTimeout(() => {
-                    completionPanel.classList.add('visible');
-                    infoPanel.classList.remove('visible'); // Hide info panel if open
-                }, 1000); // Show after a short delay
+                    dom.completionModal.classList.add('visible');
+                    dom.infoModal.classList.remove('visible'); // Hide info modal if open
+                }, 1000);
             }
         }
+        
+        function restartGame() {
+            playClickSound();
+            dom.completionModal.classList.remove('visible');
+            init(); // Re-initialize the game state
+        }
+        
+        function toggleChecklist() {
+            playClickSound();
+            dom.poiChecklistPanel.classList.toggle('visible');
+        }
 
-        // --- Start Game ---
-        initializeGame();
-        requestAnimationFrame(() => {
-            calculateJoystickRadius();
-            console.log("DEBUG: Starting game loop...");
-            requestAnimationFrame(gameLoop);
-        });
+        // --- Input Handlers ---
+        function handleKeyDown(e) {
+            // Start audio on first interaction
+            if (!state.audio.contextReady) { Tone.start().then(setupAudio); }
+            
+            if (state.gameStatus === 'SHOWING_INFO' || state.gameStatus === 'COMPLETE') return;
+            
+            if ((e.key === 'l' || e.key === 'L') && state.gameStatus === 'NEAR_POI') {
+                e.preventDefault();
+                landAtPOI();
+                return;
+            }
+            state.keys.add(e.key);
+        }
+        function handleKeyUp(e) {
+            if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                state.joystick.magnitude = 0; // Stop thrust when key is released
+            }
+            state.keys.delete(e.key);
+        }
+        
+        function calculateJoystickRadius() {
+            state.joystick.maxRadius = dom.joystickBase.offsetWidth / 2 - dom.joystickHandle.offsetWidth / 2;
+            state.joystick.baseRect = dom.joystickBase.getBoundingClientRect();
+        }
+
+        function handleJoystickTouch(e) {
+            if (state.gameStatus === 'SHOWING_INFO' || state.gameStatus === 'COMPLETE') return;
+             // Start audio on first interaction
+            if (!state.audio.contextReady) { Tone.start().then(setupAudio); }
+            e.preventDefault();
+
+            for (const touch of e.changedTouches) {
+                if (e.type === 'touchstart' && state.joystick.touchId === null) {
+                    // Check if touch is inside the joystick base
+                    const touchRect = dom.joystickBase.getBoundingClientRect();
+                    if(touch.clientX >= touchRect.left && touch.clientX <= touchRect.right &&
+                       touch.clientY >= touchRect.top && touch.clientY <= touchRect.bottom) {
+                        state.joystick.touchId = touch.identifier;
+                        state.joystick.active = true;
+                    }
+                } else if (e.type === 'touchmove' && touch.identifier === state.joystick.touchId) {
+                    updateJoystickPosition(touch.clientX, touch.clientY);
+                } else if ((e.type === 'touchend' || e.type === 'touchcancel') && touch.identifier === state.joystick.touchId) {
+                    state.joystick.touchId = null;
+                    state.joystick.active = false;
+                    state.joystick.magnitude = 0;
+                    dom.joystickHandle.style.transform = `translate(-50%, -50%)`;
+                }
+            }
+        }
+        
+        function updateJoystickPosition(touchX, touchY) {
+            const { left, top, width, height } = state.joystick.baseRect;
+            const baseCenterX = left + width / 2;
+            const baseCenterY = top + height / 2;
+            
+            let deltaX = touchX - baseCenterX;
+            let deltaY = touchY - baseCenterY;
+            
+            let angleRad = Math.atan2(deltaY, deltaX);
+            state.joystick.targetAngle = angleRad * (180 / Math.PI);
+            
+            let distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            let clampedDistance = Math.min(distance, state.joystick.maxRadius);
+            
+            state.joystick.magnitude = state.joystick.maxRadius > 0 ? (clampedDistance / state.joystick.maxRadius) : 0;
+            
+            let handleX = (Math.cos(angleRad) * clampedDistance);
+            let handleY = (Math.sin(angleRad) * clampedDistance);
+            
+            dom.joystickHandle.style.transform = `translate(calc(-50% + ${handleX}px), calc(-50% + ${handleY}px))`;
+        }
+
+        // --- Start the game ---
+        init();
+
+    })(); // End of IIFE
     </script>
 </body>
 </html>
