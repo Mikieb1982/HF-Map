@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Hoher Fläming POI Explorer (Major Upgrade)</title>
+    <title>Hoher Fläming POI Explorer</title>
     <!-- Tone.js for audio -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
     <style>
@@ -48,8 +48,6 @@
         #helicopter {
             position: absolute;
             width: 100%; height: 100%;
-            /* Using a placeholder image - replace with your actual helicopter image if available */
-            /* For example: content: url('Heli Fläming/helicopter.png'); */
             font-size: 60px; /* Fallback emoji */
             line-height: 60px;
             text-align: center;
@@ -140,7 +138,7 @@
 
         .modal-content {
             background-color: #e0e0e0; color: #333; padding: 25px; border-radius: 6px;
-            width: 90%; max-height: 85%; overflow-y: auto;
+            width: 90%; max-width: 600px; max-height: 85%; overflow-y: auto;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4); position: relative;
             border: 1px solid #bbb;
         }
@@ -318,7 +316,7 @@
         const mapContainer = document.getElementById('map-container');
         const mapContent = document.getElementById('map-content');
         const mapImage = document.getElementById('map-image');
-        const speedInfo =  document.getElementById('speed-info');
+        const speedInfo = document.getElementById('speed-info');
         const angleInfo = document.getElementById('angle-info');
         const debugInfo = document.getElementById('debug-info');
         const landIndicator = document.getElementById('land-indicator');
@@ -361,7 +359,7 @@
                 envelope: { attack: 0.01, decay: 0.3, sustain: 0.1, release: 0.5 }
             }).toDestination();
 
-             // UI Click sound
+            // UI Click sound
             clickSound = new Tone.Synth({
                 oscillator: { type: "triangle" },
                 envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 }
@@ -374,7 +372,7 @@
 
         // --- Configuration ---
         const MAP_WIDTH = 2048; const MAP_HEIGHT = 1448;
-        const startX = 1364; const startY = 603;
+        const startX = 1364; const startY = 603; // Bad Belzig
         const turnRate = 3.0;
         const forwardThrustPower = 0.15;
         const maxSpeed = 5.0;
@@ -386,24 +384,23 @@
 
         // --- POI Data (with 'visited' property) ---
         const pointsOfInterest = [
-            { id: 1, name: "Stadt und Burg Ziesar", x: 470, y: 150, visited: false, description: "..." },
-            { id: 2, name: "Gutspark Dahlen", x: 708, y: 357, visited: false, description: "..." },
-            { id: 3, name: "Klein Briesener Bach", x: 998, y: 181, visited: false, description: "..." },
-            { id: 4, name: "Paradies Dippmannsdorf", x: 1322, y: 265, visited: false, description: "..." },
-            { id: 5, name: "Töpferort Görzke", x: 416, y: 439, visited: false, description: "..." },
-            { id: 6, name: "Hagelberg", x: 946, y: 719, visited: false, description: "..." },
-            { id: 7, name: "Bad Belzig mit Burg Eisenhardt", x: 1364, y: 603, visited: false, description: "..." },
-            { id: 8, name: "Aussichtspunkt Belziger Landschaftswiesen", x: 1616, y: 501, visited: false, description: "..." },
-            { id: 9, name: "Wiesenburg mit Schloss und Park", x: 836, y: 843, visited: false, description: "..." },
-            { id: 10, name: "Naturparkzentrum Hoher Fläming", x: 1170, y: 1231, visited: false, description: "..." },
-            { id: 11, name: "Raben mit Burg Rabenstein", x: 1124, y: 1329, visited: false, description: "..." },
-            { id: 12, name: "Niemegk", x: 1624, y: 1135, visited: false, description: "..." },
-            { id: 13, name: "Flämingbuchen", x: 654, y: 1171, visited: false, description: "..." },
-            { id: 14, name: "Brautrummel mit Riesenstein", x: 1110, y: 1023, visited: false, description: "..." },
-            { id: 15, name: "Neuendorfer Rummel", x: 1482, y: 1309, visited: false, description: "..." },
-            { id: 16, name: "Garrey mit Aussichtsplattform", x: 1494, y: 1427, visited: false, description: "..." }
+            { id: 1, name: "Stadt und Burg Ziesar", x: 470, y: 150, visited: false, description: "Burg Ziesar is one of Brandenburg's few preserved bishop's residences. This lowland castle features a museum showcasing medieval church and cultural history. Its chapel, once used by Huguenots, holds well-preserved medieval paintings." },
+            { id: 2, name: "Gutspark Dahlen", x: 708, y: 357, visited: false, description: "Gutspark Dahlen is a dendrologically significant park in Hoher Fläming, designed in the English style since 1840. It offers historic vistas, pond areas, and impressive blossoms in spring, managed by a local friends' association." },
+            { id: 3, name: "Klein Briesener Bach", x: 998, y: 181, visited: false, description: "The Klein Briesener Bach is a small stream originating near Groß Briesen, flowing northwest into the Verlorenwasser. It's the longest tributary of the Verlorenwasser and is part of several protected areas within the Hoher Fläming Nature Park." },
+            { id: 4, name: "Paradies Dippmannsdorf", x: 1322, y: 265, visited: false, description: "Known for the 'Dippmannsdorfer Paradies' restaurant, this area offers good German cuisine with views of green landscapes. A nearby nature reserve, also called 'Das Paradies', features a headwater with over 30 springs, perfect for a walk." },
+            { id: 5, name: "Töpferort Görzke", x: 416, y: 439, visited: false, description: "Görzke is a traditional pottery village. Visitors can explore local potteries, each with unique patterns, and visit the Crafts Museum. The Töpferwanderweg (Pottery Hiking Trail) offers scenic views of the Buckau lowlands." },
+            { id: 6, name: "Hagelberg", x: 946, y: 719, visited: false, description: "Hagelberg is known for the Battle of Hagelberg in 1813, a significant event during the Napoleonic Wars. A monument commemorates this historical site. It's a key point in the Hoher Fläming region's history." },
+            { id: 7, name: "Bad Belzig mit Burg Eisenhardt", x: 1364, y: 603, visited: false, description: "Bad Belzig is home to Burg Eisenhardt, a historic castle with a building history spanning 3,000 years. The castle features a local history museum and its tower, the 'Butterturm', offers panoramic views of the town and Fläming landscape." },
+            { id: 8, name: "Aussichtspunkt Belziger Landschaftswiesen", x: 1616, y: 501, visited: false, description: "This viewpoint offers impressive views of the Belziger Landschaftswiesen, a 41 square kilometer lowland area and an important bird sanctuary. It's a crucial habitat for meadow breeders and great bustards, especially in winter when thousands of geese and ducks visit." },
+            { id: 9, name: "Wiesenburg mit Schloss und Park", x: 836, y: 843, visited: false, description: "Wiesenburg features a picturesque castle and park, one of the most dendrologically significant sites in Hoher Fläming. The park, designed in the English style, is publicly accessible and offers beautiful walks around its three ponds." },
+            { id: 10, name: "Naturparkzentrum Hoher Fläming", x: 1170, y: 1231, visited: false, description: "The Hoher Fläming Nature Park Center in Raben is the main information hub for visitors. It provides insights into the park's diverse landscape of meadows, forests, and historic villages, and offers details on hiking routes and events." },
+            { id: 11, name: "Raben mit Burg Rabenstein", x: 1124, y: 1329, visited: false, description: "Burg Rabenstein is arguably the most important castle in Hoher Fläming, serving historically as a border castle between Brandenburg and Saxony. Visitors can explore the castle grounds and enjoy guided tours of the tower." },
+            { id: 12, name: "Niemegk", x: 1624, y: 1135, visited: false, description: "Niemegk is a town in the Hoher Fläming region. It's part of the 'Wegweiser Hoher Fläming' initiative, an online platform providing information on local schools, associations, regional products, and cultural activities." },
+            { id: 13, name: "Flämingbuchen", x: 654, y: 1171, visited: false, description: "The Flämingbuchen are unique beech tree islands within the Brandtsheide forest. These beeches are genetically distinct, and their seeds are used for new plantings. The area is known for its lush blueberry forests." },
+            { id: 14, name: "Brautrummel mit Riesenstein", x: 1110, y: 1023, visited: false, description: "The Brautrummel is a periglacial dry valley in Hoher Fläming, a natural monument. It features a walkable wooden sculpture titled 'Ein Feldbett für den Fläming' and is part of a scenic circular hiking trail leading to the 'Riesenstein' (Giant Stone)." },
+            { id: 15, name: "Neuendorfer Rummel", x: 1482, y: 1309, visited: false, description: "The Neuendorfer Rummel is one of the deep, narrow dry valleys (Rummeln) formed by the Ice Age in the nature park. These valleys are densely forested and offer a unique hiking experience, leading visitors into their own small world." },
+            { id: 16, name: "Garrey mit Aussichtsplattform", x: 1494, y: 1427, visited: false, description: "Garrey features an observation deck at the former 'Altes Wasserwerk' (old waterworks). The site includes a small petting zoo with donkeys, goats, and mountain sheep, and the observation platform is always accessible, offering scenic views." }
         ];
-        // Full descriptions are omitted for brevity but should be included from previous versions.
 
         // --- Game State ---
         let helicopterState = { x: startX, y: startY, angle: -90, speed: 0 };
@@ -445,7 +442,7 @@
         if (mapImage.complete && mapImage.naturalWidth > 0) { mapImage.onload(); } else if (mapImage.complete) { mapImage.onerror(); } else { console.log("DEBUG: Image not yet complete."); }
 
         // --- Keyboard Control Listeners (Simplified for testing) ---
-        document.addEventListener('keydown', (event) => { if (gameState === 'SHOWING_INFO') return; if ((event.key === 'l' || event.key === 'L') && gameState === 'NEAR_POI' && currentNearbyPOI) { event.preventDefault(); landAndShowInfo(currentNearbyPOI); return; } switch (event.key) { case 'ArrowLeft': joystickState.targetAngle = (joystickState.targetAngle - 5 + 360) % 360; joystickState.active = true; break; case 'ArrowRight': joystickState.targetAngle = (joystickState.targetAngle + 5) % 360; joystickState.active = true; break; case 'ArrowUp': joystickState.magnitude = Math.min(1, joystickState.magnitude + 0.1); joystickState.active = true; break; case 'ArrowDown': joystickState.magnitude = Math.max(0, joystickState.magnitude - 0.1); joystickState.active = true; break; } });
+        document.addEventListener('keydown', (event) => { if (gameState === 'SHOWING_INFO' || gameState === 'COMPLETE') return; if ((event.key === 'l' || event.key === 'L') && gameState === 'NEAR_POI' && currentNearbyPOI) { event.preventDefault(); landAndShowInfo(currentNearbyPOI); return; } switch (event.key) { case 'ArrowLeft': joystickState.targetAngle = (joystickState.targetAngle - 5 + 360) % 360; joystickState.active = true; break; case 'ArrowRight': joystickState.targetAngle = (joystickState.targetAngle + 5) % 360; joystickState.active = true; break; case 'ArrowUp': joystickState.magnitude = Math.min(1, joystickState.magnitude + 0.1); joystickState.active = true; break; case 'ArrowDown': joystickState.magnitude = Math.max(0, joystickState.magnitude - 0.1); joystickState.active = true; break; } });
 
         // --- Joystick Touch Listeners ---
         let joystickActiveTouchId = null;
@@ -453,7 +450,7 @@
 
         function calculateJoystickRadius() { if(joystickBase && joystickHandle) { joystickMaxRadius = joystickBase.offsetWidth / 2 - joystickHandle.offsetWidth / 2; baseRect = joystickBase.getBoundingClientRect(); baseCenterX = baseRect.left + baseRect.width / 2; baseCenterY = baseRect.top + baseRect.height / 2; } else { joystickMaxRadius = 50; } }
         function handleJoystickTouch(event) {
-            if (gameState === 'SHOWING_INFO' || !joystickMaxRadius) return;
+            if (gameState === 'SHOWING_INFO' || gameState === 'COMPLETE' || !joystickMaxRadius) return;
             // Start audio on first interaction
             if (!audioReady) {
                 Tone.start().then(setupAudio);
@@ -472,6 +469,7 @@
         // --- UI Button Listeners ---
         returnButton.addEventListener('click', () => { if(audioReady) clickSound.triggerAttackRelease("C5", "8n"); hideInfoAndResumeFlight(); });
         landButton.addEventListener('touchstart', (event) => { event.preventDefault(); if (gameState === 'NEAR_POI' && currentNearbyPOI) landAndShowInfo(currentNearbyPOI); }, { passive: false });
+        landButton.addEventListener('click', () => { if(audioReady) clickSound.triggerAttackRelease("C5", "8n"); if (gameState === 'NEAR_POI' && currentNearbyPOI) landAndShowInfo(currentNearbyPOI); });
         checklistToggle.addEventListener('click', () => { poiChecklistPanel.classList.toggle('visible'); });
         restartButton.addEventListener('click', () => { location.reload(); }); // Simple restart
 
@@ -480,35 +478,94 @@
 
         // --- Update Logic ---
         function update(dt) {
-             let wasNearPOI = (gameState === 'NEAR_POI');
-             let foundNearbyPOI = null;
-             for (const poi of pointsOfInterest) { if (Math.sqrt(Math.pow(helicopterState.x - poi.x, 2) + Math.pow(helicopterState.y - poi.y, 2)) < landingRadius) { foundNearbyPOI = poi; break; } }
-             if (foundNearbyPOI) { if (!wasNearPOI) console.log(`DEBUG: Entering landing zone for POI ${foundNearbyPOI.id}`); gameState = 'NEAR_POI'; currentNearbyPOI = foundNearbyPOI; }
-             else { if (wasNearPOI) console.log("DEBUG: Exiting landing zone"); if (gameState !== 'SHOWING_INFO') { gameState = 'FLYING'; currentNearbyPOI = null; } }
-            if (joystickState.active) { let currentAngle = helicopterState.angle; let targetAngle = joystickState.targetAngle; let angleDiff = targetAngle - currentAngle; while (angleDiff <= -180) angleDiff += 360; while (angleDiff > 180) angleDiff -= 360; let turnAmount = turnRate * dt; if (Math.abs(angleDiff) < turnAmount) { helicopterState.angle = targetAngle; } else { helicopterState.angle += (angleDiff > 0 ? 1 : -1) * turnAmount; } helicopterState.angle = (helicopterState.angle + 360) % 360; }
+            let wasNearPOI = (gameState === 'NEAR_POI');
+            let foundNearbyPOI = null;
+            for (const poi of pointsOfInterest) {
+                if (!poi.visited && Math.sqrt(Math.pow(helicopterState.x - poi.x, 2) + Math.pow(helicopterState.y - poi.y, 2)) < landingRadius) {
+                    foundNearbyPOI = poi;
+                    break;
+                }
+            }
+
+            if (foundNearbyPOI) {
+                if (!wasNearPOI) console.log(`DEBUG: Entering landing zone for POI ${foundNearbyPOI.id}`);
+                gameState = 'NEAR_POI';
+                currentNearbyPOI = foundNearbyPOI;
+            } else {
+                if (wasNearPOI) console.log("DEBUG: Exiting landing zone");
+                if (gameState !== 'SHOWING_INFO') {
+                    gameState = 'FLYING';
+                    currentNearbyPOI = null;
+                }
+            }
+
+            if (joystickState.active) {
+                let currentAngle = helicopterState.angle;
+                let targetAngle = joystickState.targetAngle;
+                let angleDiff = targetAngle - currentAngle;
+                while (angleDiff <= -180) angleDiff += 360;
+                while (angleDiff > 180) angleDiff -= 360;
+                let turnAmount = turnRate * dt;
+                if (Math.abs(angleDiff) < turnAmount) {
+                    helicopterState.angle = targetAngle;
+                } else {
+                    helicopterState.angle += (angleDiff > 0 ? 1 : -1) * turnAmount;
+                }
+                helicopterState.angle = (helicopterState.angle + 360) % 360;
+            }
+
             let acceleration = 0;
-            if (joystickState.active) { acceleration += forwardThrustPower * joystickState.magnitude; }
+            if (joystickState.active) {
+                acceleration += forwardThrustPower * joystickState.magnitude;
+            }
             helicopterState.speed += acceleration * dt;
+
             const currentDrag = (gameState === 'NEAR_POI') ? landingZoneDrag : normalDrag;
             helicopterState.speed *= Math.pow(currentDrag, dt);
-            if (helicopterState.speed < minSpeed && !joystickState.active) { if (gameState !== 'NEAR_POI' || helicopterState.speed < 0.01) { helicopterState.speed = 0; } }
+
+            if (helicopterState.speed < minSpeed && !joystickState.active) {
+                if (gameState !== 'NEAR_POI' || helicopterState.speed < 0.01) { // Allow slight movement in landing zone
+                    helicopterState.speed = 0;
+                }
+            }
             helicopterState.speed = Math.max(0, Math.min(helicopterState.speed, maxSpeed));
+
             const angleRad = helicopterState.angle * (Math.PI / 180);
-            const vx = Math.cos(angleRad) * helicopterState.speed; const vy = Math.sin(angleRad) * helicopterState.speed;
-            helicopterState.x += vx * dt; helicopterState.y += vy * dt;
-            helicopterState.x = Math.max(0, Math.min(MAP_WIDTH, helicopterState.x)); helicopterState.y = Math.max(0, Math.min(MAP_HEIGHT, helicopterState.y));
-             if (gameState === 'NEAR_POI') { poiNameSpan.textContent = currentNearbyPOI.name; landIndicator.style.display = 'block'; landPrompt.style.display = 'inline'; landButton.style.display = 'flex'; joystickContainer.style.display = 'block';}
-             else if (gameState === 'FLYING') { landIndicator.style.display = 'none'; landPrompt.style.display = 'none'; landButton.style.display = 'none'; currentNearbyPOI = null; }
+            const vx = Math.cos(angleRad) * helicopterState.speed;
+            const vy = Math.sin(angleRad) * helicopterState.speed;
+
+            helicopterState.x += vx * dt;
+            helicopterState.y += vy * dt;
+
+            // Clamp helicopter position to map boundaries
+            helicopterState.x = Math.max(0, Math.min(MAP_WIDTH, helicopterState.x));
+            helicopterState.y = Math.max(0, Math.min(MAP_HEIGHT, helicopterState.y));
+
+            if (gameState === 'NEAR_POI') {
+                poiNameSpan.textContent = currentNearbyPOI.name;
+                landIndicator.style.display = 'block';
+                landPrompt.style.display = 'inline';
+                landButton.style.display = 'flex';
+                joystickContainer.style.display = 'block'; // Keep joystick visible when near POI
+            } else if (gameState === 'FLYING') {
+                landIndicator.style.display = 'none';
+                landPrompt.style.display = 'none';
+                landButton.style.display = 'none';
+                currentNearbyPOI = null;
+            }
         }
 
         // --- Render Logic ---
         function render() {
-            helicopterContainer.style.left = `${helicopterState.x}px`; helicopterContainer.style.top = `${helicopterState.y}px`;
-            const visualAngle = helicopterState.angle + 90;
+            helicopterContainer.style.left = `${helicopterState.x}px`;
+            helicopterContainer.style.top = `${helicopterState.y}px`;
+            const visualAngle = helicopterState.angle + 90; // Adjust for emoji orientation
             helicopterContainer.style.transform = `translate(-50%, 0%) rotate(${visualAngle}deg)`;
+
             speedInfo.textContent = helicopterState.speed.toFixed(2);
-            let displayAngle = Math.round((helicopterState.angle + 90 + 360) % 360);
+            let displayAngle = Math.round((helicopterState.angle + 90 + 360) % 360); // Normalize to 0-360
             angleInfo.textContent = `${displayAngle}°`;
+
             // Update audio based on state
             if (audioReady) {
                 const speedRatio = helicopterState.speed / maxSpeed;
@@ -519,18 +576,31 @@
         }
 
         // --- Map Scrolling Function ---
-        function centerViewOnHelicopter() { const scrollX = helicopterState.x - mapContainer.clientWidth / 2; const scrollY = helicopterState.y - mapContainer.clientHeight / 2; mapContainer.scrollTo({ left: scrollX, top: scrollY, behavior: 'auto' }); }
+        function centerViewOnHelicopter() {
+            const scrollX = helicopterState.x - mapContainer.clientWidth / 2;
+            const scrollY = helicopterState.y - mapContainer.clientHeight / 2;
+            mapContainer.scrollTo({ left: scrollX, top: scrollY, behavior: 'auto' });
+        }
 
         // --- Landing and Info Panel Functions ---
         function landAndShowInfo(poi) {
             gameState = 'SHOWING_INFO';
             if(audioReady) landingSound.triggerAttackRelease("A3", "4n");
-            currentNearbyPOI = poi; helicopterState.speed = 0;
-            joystickState.active = false; joystickState.magnitude = 0;
-            joystickHandle.style.transform = `translate(-50%, -50%)`; joystickHandle.style.left = `50%`; joystickHandle.style.top = `50%`;
-            joystickActiveTouchId = null;
-            landIndicator.style.display = 'none'; landPrompt.style.display = 'none';
-            landButton.style.display = 'none'; joystickContainer.style.display = 'none';
+            currentNearbyPOI = poi;
+            helicopterState.speed = 0; // Stop helicopter movement
+            joystickState.active = false;
+            joystickState.magnitude = 0;
+            joystickHandle.style.transform = `translate(-50%, -50%)`;
+            joystickHandle.style.left = `50%`;
+            joystickHandle.style.top = `50%`;
+            joystickActiveTouchId = null; // Release any active joystick touch
+
+            // Hide flight UI
+            landIndicator.style.display = 'none';
+            landPrompt.style.display = 'none';
+            landButton.style.display = 'none';
+            joystickContainer.style.display = 'none';
+
             // Mark POI as visited
             if (!poi.visited) {
                 poi.visited = true;
@@ -538,17 +608,24 @@
                 document.getElementById(`checklist-item-${poi.id}`).classList.add('visited');
                 checkCompletion();
             }
+
             // Show info panel
-            infoTitle.textContent = `${poi.id}. ${poi.name}`; infoDescription.innerHTML = poi.description.replace(/\n/g, '<br>');
+            infoTitle.textContent = `${poi.id}. ${poi.name}`;
+            infoDescription.innerHTML = poi.description.replace(/\n/g, '<br>'); // Replace newlines with <br> for HTML display
             infoPanel.classList.add('visible');
         }
+
         function hideInfoAndResumeFlight() {
-            if (!currentNearbyPOI) return;
-            infoPanel.classList.remove('visible'); joystickContainer.style.display = 'block';
-            helicopterState.x = currentNearbyPOI.x; helicopterState.y = currentNearbyPOI.y;
-            helicopterState.speed = 0; centerViewOnHelicopter();
-            gameState = 'FLYING';
-            calculateJoystickRadius();
+            if (!currentNearbyPOI) return; // Should not happen if called correctly
+            infoPanel.classList.remove('visible');
+            joystickContainer.style.display = 'block'; // Show joystick again
+            // Optionally reposition helicopter slightly after landing, or keep it at POI
+            helicopterState.x = currentNearbyPOI.x;
+            helicopterState.y = currentNearbyPOI.y;
+            helicopterState.speed = 0; // Ensure speed is zero when resuming from POI
+            centerViewOnHelicopter(); // Recenter view
+            gameState = 'FLYING'; // Resume flight state
+            calculateJoystickRadius(); // Recalculate in case of resize
         }
 
         function checkCompletion() {
@@ -566,9 +643,9 @@
         // --- Start Game ---
         initializeGame();
         requestAnimationFrame(() => {
-             calculateJoystickRadius();
-             console.log("DEBUG: Starting game loop...");
-             requestAnimationFrame(gameLoop);
+            calculateJoystickRadius();
+            console.log("DEBUG: Starting game loop...");
+            requestAnimationFrame(gameLoop);
         });
     </script>
 </body>
