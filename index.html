@@ -77,6 +77,8 @@
             transform-origin: center center;
             z-index: 10;
             pointer-events: none;
+            /* The transform property is now set by JS */
+            transition: transform 0.05s linear;
         }
 
         #helicopter {
@@ -86,7 +88,7 @@
             font-size: 50px;
             line-height: 60px;
             text-align: center;
-            transition: transform 0.05s linear;
+            /* No transform or transition needed here anymore */
         }
 
         #helicopter-shadow {
@@ -99,7 +101,6 @@
             left: 15%;
             filter: blur(5px);
             z-index: -1;
-            transition: transform 0.05s linear;
         }
 
         /* --- POI Markers --- */
@@ -647,9 +648,15 @@
 
         // --- Render & UI Update Logic ---
         function render() {
-            dom.helicopterContainer.style.transform = `translate(${state.helicopter.x}px, ${state.helicopter.y}px)`;
+            // *** FIX STARTS HERE ***
+            // Set position using left/top for reliability
+            dom.helicopterContainer.style.left = `${state.helicopter.x}px`;
+            dom.helicopterContainer.style.top = `${state.helicopter.y}px`;
+            
+            // Set transform for centering and rotation
             const visualAngle = state.helicopter.angle + 90; // Adjust for emoji orientation
-            dom.helicopter.style.transform = `rotate(${visualAngle}deg)`;
+            dom.helicopterContainer.style.transform = `translate(-50%, -50%) rotate(${visualAngle}deg)`;
+            // *** FIX ENDS HERE ***
 
             dom.speedInfo.textContent = state.helicopter.speed.toFixed(1);
             dom.angleInfo.textContent = `${Math.round((visualAngle + 360) % 360)}`;
@@ -810,5 +817,3 @@
     </script>
 </body>
 </html>
-```
-I've updated the image `src` to the correct path. The game should be fully functional now. Let me know if you run into any other issu
