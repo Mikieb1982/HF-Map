@@ -146,6 +146,8 @@
             z-index: 100;
             pointer-events: none;
             will-change: transform;
+            left: 0;
+            top: 0;
         }
 
         #helicopter {
@@ -155,6 +157,7 @@
             justify-content: center;
             align-items: center;
             font-size: 60px;
+            line-height: 1;
             filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
             transition: filter 0.3s ease;
         }
@@ -1264,11 +1267,17 @@
         }
 
         function onMapLoaded() {
+            // Initialize helicopter position immediately
+            dom.helicopterContainer.style.left = `${state.helicopter.x}px`;
+            dom.helicopterContainer.style.top = `${state.helicopter.y}px`;
+            dom.helicopterContainer.style.transform = `translate(-50%, -50%) rotate(0deg)`;
+            
             setTimeout(() => {
                 dom.loadingScreen.classList.add('hidden');
                 state.gameActive = true;
                 state.startTime = Date.now();
                 centerCamera();
+                render(); // Initial render
                 requestAnimationFrame(gameLoop);
             }, 1500);
         }
@@ -1659,12 +1668,16 @@
         }
 
         function render() {
-            // Update helicopter position
+            // Update helicopter position with explicit px units
             dom.helicopterContainer.style.left = `${state.helicopter.x}px`;
             dom.helicopterContainer.style.top = `${state.helicopter.y}px`;
             
             const visualAngle = state.helicopter.angle + 90;
             dom.helicopterContainer.style.transform = `translate(-50%, -50%) rotate(${visualAngle}deg)`;
+            
+            // Ensure helicopter is visible
+            dom.helicopterContainer.style.visibility = 'visible';
+            dom.helicopter.style.visibility = 'visible';
             
             // Flying class
             if (state.helicopter.speed > 0.5) {
