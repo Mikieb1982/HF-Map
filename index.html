@@ -1112,13 +1112,13 @@
             START_X: 1364,
             START_Y: 603,
             MAX_SPEED: 7,
-            ACCELERATION: 0.18,
-            DRAG: 0.97,
-            TURN_SPEED: 3.5,
+            ACCELERATION: 0.25,  // Increased from 0.18
+            DRAG: 0.98,          // Increased from 0.97
+            TURN_SPEED: 4.5,     // Increased from 3.5
             LANDING_RADIUS: 90,
             JOYSTICK_RADIUS: 55,
             PARTICLE_RATE: 0.3,
-            WIND_EFFECT: 0.02
+            WIND_EFFECT: 0.01    // Reduced from 0.02
         };
 
         // POI Data
@@ -1520,7 +1520,7 @@
             if (state.input.keys.has('arrowright') || state.input.keys.has('d')) turning = 1;
             
             // Joystick overrides keyboard
-            if (state.input.joystick.active) {
+            if (state.input.joystick.active && state.input.joystick.magnitude > 0.1) {
                 thrust = state.input.joystick.magnitude;
                 const targetAngle = state.input.joystick.angle * 180 / Math.PI;
                 let angleDiff = targetAngle - heli.angle;
@@ -1537,20 +1537,22 @@
             // Update velocity
             const angleRad = heli.angle * Math.PI / 180;
             const accel = thrust * CONFIG.ACCELERATION;
+            
+            // Apply thrust
             heli.vx += Math.cos(angleRad) * accel * dt;
             heli.vy += Math.sin(angleRad) * accel * dt;
             
-            // Apply wind effect
+            // Apply wind effect (reduced for better control)
             const windRad = state.wind.angle * Math.PI / 180;
-            heli.vx += Math.cos(windRad) * state.wind.strength * CONFIG.WIND_EFFECT * dt;
-            heli.vy += Math.sin(windRad) * state.wind.strength * CONFIG.WIND_EFFECT * dt;
+            heli.vx += Math.cos(windRad) * state.wind.strength * CONFIG.WIND_EFFECT * dt * 0.5;
+            heli.vy += Math.sin(windRad) * state.wind.strength * CONFIG.WIND_EFFECT * dt * 0.5;
             
             // Apply drag
             const drag = state.nearbyPOI ? 0.88 : CONFIG.DRAG;
             heli.vx *= Math.pow(drag, dt);
             heli.vy *= Math.pow(drag, dt);
             
-            // Calculate speed
+            // Calculate speed before position update
             const oldX = heli.x;
             const oldY = heli.y;
             heli.speed = Math.sqrt(heli.vx * heli.vx + heli.vy * heli.vy);
@@ -1567,7 +1569,7 @@
             heli.x += heli.vx * dt;
             heli.y += heli.vy * dt;
             
-            // Keep in bounds
+            // Keep in bounds with margin
             heli.x = Math.max(40, Math.min(CONFIG.MAP_WIDTH - 40, heli.x));
             heli.y = Math.max(40, Math.min(CONFIG.MAP_HEIGHT - 40, heli.y));
             
@@ -1575,8 +1577,10 @@
             const dx = heli.x - oldX;
             const dy = heli.y - oldY;
             const distance = Math.sqrt(dx * dx + dy * dy);
-            heli.totalDistance += distance;
-            state.stats.totalDistance = heli.totalDistance / 100; // Convert to approx km
+            if (distance > 0.01) { // Only count if actually moving
+                heli.totalDistance += distance;
+                state.stats.totalDistance = heli.totalDistance / 100; // Convert to approx km
+            }
             
             // Update max speed
             if (heli.speed > state.stats.maxSpeed) {
@@ -1596,7 +1600,20 @@
             
             // Update wind (slowly change direction)
             state.wind.angle += (Math.random() - 0.5) * 0.5;
-            state.wind.strength = 0.3 + Math.sin(currentTime * 0.0001) * 0.2;
+            state.wind.strength = 0.3 + Math.sin(Date.now() * 0.0001) * 0.2;
+            
+            // Debug logging (remove in production)
+            if (frameCount % 60 === 0 && thrust > 0) {
+                console.log('Debug:', {
+                    thrust,
+                    angle: heli.angle,
+                    speed: heli.speed.toFixed(2),
+                    x: Math.round(heli.x),
+                    y: Math.round(heli.y),
+                    vx: heli.vx.toFixed(2),
+                    vy: heli.vy.toFixed(2)
+                });
+            }
         }
 
         function checkPOIProximity() {
