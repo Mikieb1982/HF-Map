@@ -68,6 +68,12 @@
             font-size: 80px;
             animation: loading-hover 1s ease-in-out infinite;
             margin-bottom: 30px;
+            display: inline-block;
+        }
+        
+        .loading-helicopter svg {
+            width: 80px;
+            height: 80px;
         }
 
         @keyframes loading-hover {
@@ -156,52 +162,88 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 60px;
-            line-height: 1;
-            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
             transition: filter 0.3s ease;
         }
 
-        #helicopter.flying {
-            filter: drop-shadow(0 8px 16px rgba(0,0,0,0.7));
+        #helicopter svg {
+            width: 100%;
+            height: 100%;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4));
         }
 
-        #rotor-blur {
-            position: absolute;
-            top: -10px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 100px;
-            height: 20px;
-            background: radial-gradient(ellipse at center, rgba(255,255,255,0.1) 0%, transparent 70%);
+        /* Rotor animations */
+        #main-rotor {
+            transform-origin: center;
+            animation: rotor-slow 2s linear infinite;
+        }
+
+        #tail-rotor {
+            transform-origin: center;
+            animation: rotor-fast 0.1s linear infinite;
+        }
+
+        .flying #main-rotor {
             animation: rotor-spin 0.1s linear infinite;
-            opacity: 0;
-            transition: opacity 0.3s ease;
         }
 
-        .flying #rotor-blur {
-            opacity: 1;
+        .flying #tail-rotor {
+            animation: rotor-spin 0.05s linear infinite;
+        }
+
+        .flying #rotor-disk {
+            opacity: 0.3 !important;
+            animation: rotor-disk-spin 0.2s linear infinite;
+        }
+
+        @keyframes rotor-slow {
+            to { transform: rotate(360deg); }
         }
 
         @keyframes rotor-spin {
-            to { transform: translateX(-50%) rotate(360deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes rotor-fast {
+            to { transform: rotate(-360deg); }
+        }
+
+        @keyframes rotor-disk-spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Helicopter tilt based on movement */
+        #heli-body {
+            transform-origin: center;
+            transition: transform 0.2s ease;
+        }
+
+        .flying #heli-body {
+            animation: body-hover 2s ease-in-out infinite;
+        }
+
+        @keyframes body-hover {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-2px); }
+        }
+
+        /* Shadow animations */
+        .heli-shadow {
+            animation: shadow-pulse 2s ease-in-out infinite;
+        }
+
+        .flying .heli-shadow {
+            animation: shadow-pulse 0.5s ease-in-out infinite;
+            transform: scale(1.2);
+            opacity: 0.2;
+        }
+
+        @keyframes shadow-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
         }
 
         #helicopter-shadow {
-            position: absolute;
-            width: 60%;
-            height: 20%;
-            background: radial-gradient(ellipse at center, rgba(0,0,0,0.4) 0%, transparent 70%);
-            top: 110%;
-            left: 20%;
-            filter: blur(8px);
-            transform: scaleY(0.5);
-            transition: all 0.3s ease;
-        }
-
-        .flying #helicopter-shadow {
-            transform: scaleY(0.3) scaleX(1.2);
-            opacity: 0.6;
+            display: none; /* Hide the old shadow */
         }
 
         /* Particles */
@@ -913,7 +955,25 @@
     <!-- Loading Screen -->
     <div id="loading-screen">
         <div class="loading-content">
-            <div class="loading-helicopter">🚁</div>
+            <div class="loading-helicopter">
+                <svg width="80" height="80" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+                    <ellipse cx="40" cy="70" rx="25" ry="8" fill="rgba(0,0,0,0.3)"/>
+                    <g>
+                        <rect x="35" y="45" width="10" height="25" rx="2" fill="#2c3e50"/>
+                        <rect x="32" y="65" width="16" height="4" rx="1" fill="#34495e"/>
+                        <ellipse cx="40" cy="40" rx="20" ry="15" fill="#3498db"/>
+                        <ellipse cx="40" cy="40" rx="18" ry="13" fill="#5dade2"/>
+                        <path d="M 25 35 Q 40 25 55 35 L 55 40 Q 40 45 25 40 Z" fill="#1a5490" opacity="0.7"/>
+                        <path d="M 28 35 Q 40 28 52 35 L 52 38 Q 40 42 28 38 Z" fill="#74c0fc" opacity="0.5"/>
+                    </g>
+                    <circle cx="40" cy="30" r="3" fill="#2c3e50"/>
+                    <g transform="translate(40, 30)">
+                        <animateTransform attributeName="transform" type="rotate" from="0 0 0" to="360 0 0" dur="0.5s" repeatCount="indefinite"/>
+                        <rect x="-35" y="-1.5" width="70" height="3" rx="1.5" fill="#475569" opacity="0.9"/>
+                        <rect x="-35" y="-1.5" width="70" height="3" rx="1.5" fill="#475569" opacity="0.9" transform="rotate(90)"/>
+                    </g>
+                </svg>
+            </div>
             <div class="loading-text">Preparing your flight...</div>
             <div class="loading-bar">
                 <div class="loading-bar-fill"></div>
@@ -927,8 +987,50 @@
             <img id="map-image" src="https://raw.githubusercontent.com/Mikieb1982/HF-Map/main/hoher_flaeming_map.jpg" alt="Hoher Fläming Map">
             <div id="grid-overlay"></div>
             <div id="helicopter-container">
-                <div id="rotor-blur"></div>
-                <div id="helicopter">🚁</div>
+                <div id="helicopter">
+                    <svg width="80" height="80" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Shadow -->
+                        <ellipse cx="40" cy="70" rx="25" ry="8" fill="rgba(0,0,0,0.3)" class="heli-shadow"/>
+                        
+                        <!-- Main body -->
+                        <g id="heli-body">
+                            <!-- Tail -->
+                            <rect x="35" y="45" width="10" height="25" rx="2" fill="#2c3e50"/>
+                            <rect x="32" y="65" width="16" height="4" rx="1" fill="#34495e"/>
+                            
+                            <!-- Main fuselage -->
+                            <ellipse cx="40" cy="40" rx="20" ry="15" fill="#3498db"/>
+                            <ellipse cx="40" cy="40" rx="18" ry="13" fill="#5dade2"/>
+                            
+                            <!-- Cockpit -->
+                            <path d="M 25 35 Q 40 25 55 35 L 55 40 Q 40 45 25 40 Z" fill="#1a5490" opacity="0.7"/>
+                            <path d="M 28 35 Q 40 28 52 35 L 52 38 Q 40 42 28 38 Z" fill="#74c0fc" opacity="0.5"/>
+                            
+                            <!-- Landing skids -->
+                            <rect x="25" y="50" width="3" height="8" rx="1" fill="#2c3e50"/>
+                            <rect x="52" y="50" width="3" height="8" rx="1" fill="#2c3e50"/>
+                            <rect x="20" y="56" width="40" height="2" rx="1" fill="#34495e"/>
+                        </g>
+                        
+                        <!-- Tail rotor -->
+                        <g id="tail-rotor" transform="translate(40, 68)">
+                            <circle cx="0" cy="0" r="1" fill="#2c3e50"/>
+                            <rect x="-8" y="-0.5" width="16" height="1" rx="0.5" fill="#64748b" opacity="0.8"/>
+                        </g>
+                        
+                        <!-- Main rotor hub -->
+                        <circle cx="40" cy="30" r="3" fill="#2c3e50"/>
+                        
+                        <!-- Main rotor blades -->
+                        <g id="main-rotor" transform="translate(40, 30)">
+                            <rect x="-35" y="-1.5" width="70" height="3" rx="1.5" fill="#475569" opacity="0.9"/>
+                            <rect x="-35" y="-1.5" width="70" height="3" rx="1.5" fill="#475569" opacity="0.9" transform="rotate(90)"/>
+                        </g>
+                        
+                        <!-- Rotor blur effect (visible when flying) -->
+                        <circle id="rotor-disk" cx="40" cy="30" r="35" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="2" opacity="0"/>
+                    </svg>
+                </div>
                 <div id="helicopter-shadow"></div>
             </div>
         </div>
@@ -1696,13 +1798,25 @@
             dom.helicopterContainer.style.visibility = 'visible';
             dom.helicopter.style.visibility = 'visible';
             
-            // Flying class
+            // Flying class and tilt effect
             if (state.helicopter.speed > 0.5) {
                 dom.helicopter.classList.add('flying');
                 dom.helicopterContainer.classList.add('flying');
+                
+                // Add tilt based on velocity
+                const tiltX = Math.max(-15, Math.min(15, state.helicopter.vy * 2));
+                const tiltY = Math.max(-15, Math.min(15, -state.helicopter.vx * 2));
+                const heliBody = dom.helicopter.querySelector('#heli-body');
+                if (heliBody) {
+                    heliBody.style.transform = `rotateX(${tiltX}deg) rotateY(${tiltY}deg)`;
+                }
             } else {
                 dom.helicopter.classList.remove('flying');
                 dom.helicopterContainer.classList.remove('flying');
+                const heliBody = dom.helicopter.querySelector('#heli-body');
+                if (heliBody) {
+                    heliBody.style.transform = 'rotateX(0deg) rotateY(0deg)';
+                }
             }
             
             // Update HUD
