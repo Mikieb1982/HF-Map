@@ -129,7 +129,32 @@
             filter: brightness(0.9) contrast(1.1);
         }
 
-        /* Grid Overlay */
+        /* Map enhancements */
+        #map-background {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        #map-image {
+            display: block;
+            width: 100%;
+            height: 100%;
+            opacity: 0.9;
+            filter: brightness(1.05) contrast(1.1) saturate(1.1);
+        }
+
+        #terrain-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            opacity: 0.3;
+            mix-blend-mode: multiply;
+        }
+
         #grid-overlay {
             position: absolute;
             inset: 0;
@@ -139,6 +164,240 @@
             background-size: 50px 50px;
             pointer-events: none;
             opacity: 0.5;
+            animation: grid-shift 100s linear infinite;
+        }
+
+        @keyframes grid-shift {
+            to { background-position: 50px 50px; }
+        }
+
+        #fog-layer {
+            position: absolute;
+            inset: 0;
+            background: 
+                radial-gradient(ellipse at 20% 30%, rgba(255,255,255,0.1) 0%, transparent 40%),
+                radial-gradient(ellipse at 80% 70%, rgba(255,255,255,0.08) 0%, transparent 40%),
+                radial-gradient(ellipse at 50% 50%, transparent 30%, rgba(0,0,0,0.1) 100%);
+            pointer-events: none;
+            animation: fog-drift 60s ease-in-out infinite;
+        }
+
+        @keyframes fog-drift {
+            0%, 100% { transform: translate(0, 0); }
+            33% { transform: translate(-20px, 10px); }
+            66% { transform: translate(20px, -10px); }
+        }
+
+        /* Environmental effects */
+        #environment-layer {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+
+        #cloud-layer {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+        }
+
+        .cloud {
+            position: absolute;
+            width: 200px;
+            height: 80px;
+            background: radial-gradient(ellipse at center, rgba(255,255,255,0.4) 0%, transparent 70%);
+            border-radius: 100px;
+            filter: blur(20px);
+            animation: cloud-drift 120s linear infinite;
+        }
+
+        .cloud::before,
+        .cloud::after {
+            content: '';
+            position: absolute;
+            background: radial-gradient(ellipse at center, rgba(255,255,255,0.3) 0%, transparent 70%);
+            border-radius: 100px;
+        }
+
+        .cloud::before {
+            width: 100px;
+            height: 60px;
+            top: -20px;
+            left: 40px;
+        }
+
+        .cloud::after {
+            width: 120px;
+            height: 60px;
+            top: 10px;
+            right: 30px;
+        }
+
+        @keyframes cloud-drift {
+            from { transform: translateX(-300px); }
+            to { transform: translateX(2348px); }
+        }
+
+        /* Birds */
+        #bird-container {
+            position: absolute;
+            inset: 0;
+        }
+
+        .bird {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            color: #333;
+            font-size: 16px;
+            animation: bird-fly 30s linear infinite;
+        }
+
+        @keyframes bird-fly {
+            from { 
+                transform: translateX(-50px) translateY(0);
+            }
+            25% {
+                transform: translateX(500px) translateY(-20px);
+            }
+            50% {
+                transform: translateX(1000px) translateY(20px);
+            }
+            75% {
+                transform: translateX(1500px) translateY(-10px);
+            }
+            to { 
+                transform: translateX(2098px) translateY(0);
+            }
+        }
+
+        /* Weather effects */
+        #weather-effects {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+
+        .sunbeam {
+            position: absolute;
+            width: 100px;
+            height: 1000px;
+            background: linear-gradient(to bottom, 
+                transparent 0%, 
+                rgba(255,255,200,0.1) 20%,
+                rgba(255,255,200,0.05) 50%,
+                transparent 100%);
+            transform-origin: top center;
+            animation: sunbeam-move 20s ease-in-out infinite;
+        }
+
+        @keyframes sunbeam-move {
+            0%, 100% { 
+                opacity: 0.3;
+                transform: rotate(-5deg);
+            }
+            50% { 
+                opacity: 0.6;
+                transform: rotate(5deg);
+            }
+        }
+
+        /* Enhanced POI markers */
+        .poi-marker {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            z-index: 50;
+        }
+
+        .poi-marker::before {
+            content: '';
+            position: absolute;
+            inset: -10px;
+            background: radial-gradient(circle at center, 
+                transparent 30%, 
+                rgba(251,191,36,0.2) 50%, 
+                transparent 70%);
+            border-radius: 50%;
+            animation: poi-glow 3s ease-in-out infinite;
+        }
+
+        @keyframes poi-glow {
+            0%, 100% { 
+                transform: scale(1);
+                opacity: 0.5;
+            }
+            50% { 
+                transform: scale(1.2);
+                opacity: 0.8;
+            }
+        }
+
+        .poi-marker-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: var(--accent-secondary);
+            border: 3px solid rgba(255,255,255,0.9);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            font-size: 16px;
+            color: var(--bg-dark);
+            box-shadow: 
+                0 2px 8px rgba(0,0,0,0.3), 
+                0 0 20px rgba(251,191,36,0.5),
+                inset 0 -2px 4px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+
+        .poi-marker.visited .poi-marker-inner {
+            background: var(--accent-success);
+            box-shadow: 
+                0 2px 8px rgba(0,0,0,0.3), 
+                0 0 15px rgba(52,211,153,0.5),
+                inset 0 -2px 4px rgba(0,0,0,0.2);
+        }
+
+        .poi-marker.visited::before {
+            animation: none;
+            opacity: 0.3;
+        }
+
+        /* Terrain features */
+        .terrain-feature {
+            position: absolute;
+            pointer-events: none;
+        }
+
+        .forest-patch {
+            width: 100px;
+            height: 100px;
+            background: radial-gradient(circle at center, 
+                rgba(34,139,34,0.3) 0%, 
+                rgba(34,139,34,0.1) 50%,
+                transparent 70%);
+            border-radius: 50%;
+            filter: blur(20px);
+        }
+
+        .water-body {
+            background: radial-gradient(ellipse at center, 
+                rgba(65,105,225,0.3) 0%, 
+                rgba(65,105,225,0.1) 50%,
+                transparent 70%);
+            border-radius: 50%;
+            filter: blur(15px);
+            animation: water-shimmer 4s ease-in-out infinite;
+        }
+
+        @keyframes water-shimmer {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.5; }
         }
 
         /* Helicopter */
@@ -956,12 +1215,25 @@
     <!-- Map Container -->
     <div id="map-container">
         <div id="map-viewport">
-            <img id="map-image" src="https://raw.githubusercontent.com/Mikieb1982/HF-Map/main/hoher_flaeming_map.jpg" alt="Hoher Fläming Map">
-            <div id="grid-overlay"></div>
+            <!-- Background layers -->
+            <div id="map-background">
+                <img id="map-image" src="https://raw.githubusercontent.com/Mikieb1982/HF-Map/main/hoher_flaeming_map.jpg" alt="Hoher Fläming Map">
+                <canvas id="terrain-overlay"></canvas>
+                <div id="grid-overlay"></div>
+                <div id="fog-layer"></div>
+            </div>
+            
+            <!-- Environmental effects -->
+            <div id="environment-layer">
+                <div id="cloud-layer"></div>
+                <div id="bird-container"></div>
+                <div id="weather-effects"></div>
+            </div>
+            
+            <!-- Helicopter -->
             <div id="helicopter-container">
                 <div id="helicopter">
                     <svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                        <!-- Definitions -->
                         <defs>
                             <linearGradient id="bodyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
                                 <stop offset="0%" style="stop-color:#4a90e2;stop-opacity:1" />
@@ -976,44 +1248,24 @@
                             </filter>
                         </defs>
                         
-                        <!-- Shadow -->
                         <ellipse cx="50" cy="85" rx="20" ry="5" fill="rgba(0,0,0,0.2)" class="heli-shadow"/>
                         
-                        <!-- Main body -->
                         <g id="heli-body">
-                            <!-- Tail section -->
                             <path d="M 45 55 L 43 75 L 47 75 L 48 70 L 52 70 L 53 75 L 57 75 L 55 55 Z" fill="#34495e"/>
-                            <!-- Tail fin -->
                             <path d="M 48 68 L 46 78 L 48 80 L 50 80 L 52 78 L 50 68 Z" fill="#2c3e50"/>
-                            
-                            <!-- Main fuselage -->
                             <ellipse cx="50" cy="50" rx="18" ry="14" fill="url(#bodyGrad)"/>
-                            
-                            <!-- Belly -->
                             <ellipse cx="50" cy="52" rx="16" ry="10" fill="#2e5f8a" opacity="0.5"/>
-                            
-                            <!-- Cockpit -->
                             <path d="M 35 45 Q 50 35 65 45 L 65 50 Q 50 55 35 50 Z" fill="#1a4d7a"/>
                             <path d="M 37 45 Q 50 38 63 45 L 63 48 Q 50 52 37 48 Z" fill="url(#cockpitGrad)"/>
-                            
-                            <!-- Side windows -->
                             <ellipse cx="38" cy="48" rx="3" ry="4" fill="#4682b4" opacity="0.6"/>
                             <ellipse cx="62" cy="48" rx="3" ry="4" fill="#4682b4" opacity="0.6"/>
-                            
-                            <!-- Doors -->
                             <rect x="35" y="50" width="8" height="10" rx="1" fill="none" stroke="#2e5f8a" stroke-width="0.5"/>
                             <rect x="57" y="50" width="8" height="10" rx="1" fill="none" stroke="#2e5f8a" stroke-width="0.5"/>
-                            
-                            <!-- Landing gear -->
                             <rect x="35" y="60" width="2" height="8" fill="#333"/>
                             <rect x="63" y="60" width="2" height="8" fill="#333"/>
                             <path d="M 32 66 Q 32 68 34 68 L 66 68 Q 68 68 68 66" fill="none" stroke="#444" stroke-width="2"/>
-                            
-                            <!-- Engine intakes -->
                             <ellipse cx="40" cy="44" rx="2" ry="3" fill="#1a1a1a"/>
                             <ellipse cx="60" cy="44" rx="2" ry="3" fill="#1a1a1a"/>
-                            
-                            <!-- Nav lights -->
                             <circle cx="32" cy="50" r="1" fill="#ff0000" opacity="0.8">
                                 <animate attributeName="opacity" values="0.8;0.2;0.8" dur="1.5s" repeatCount="indefinite"/>
                             </circle>
@@ -1022,7 +1274,6 @@
                             </circle>
                         </g>
                         
-                        <!-- Tail rotor -->
                         <g id="tail-rotor-group" transform="translate(50, 78)">
                             <circle cx="0" cy="0" r="2" fill="#222"/>
                             <g id="tail-rotor">
@@ -1031,25 +1282,17 @@
                             </g>
                         </g>
                         
-                        <!-- Main rotor -->
                         <g transform="translate(50, 38)">
-                            <!-- Rotor shaft -->
                             <rect x="-2" y="0" width="4" height="12" fill="#333"/>
-                            <!-- Rotor hub -->
                             <circle cx="0" cy="0" r="4" fill="#222"/>
-                            
-                            <!-- Main rotor blades -->
                             <g id="main-rotor">
                                 <rect x="-40" y="-2" width="80" height="4" rx="2" fill="#444" opacity="0.9"/>
                                 <rect x="-2" y="-40" width="4" height="80" rx="2" fill="#444" opacity="0.9"/>
-                                <!-- Blade tips -->
                                 <circle cx="38" cy="0" r="1" fill="#ff0000"/>
                                 <circle cx="-38" cy="0" r="1" fill="#ff0000"/>
                                 <circle cx="0" cy="38" r="1" fill="#ff0000"/>
                                 <circle cx="0" cy="-38" r="1" fill="#ff0000"/>
                             </g>
-                            
-                            <!-- Rotor blur -->
                             <circle id="rotor-blur" cx="0" cy="0" r="38" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="2" opacity="0" filter="url(#blur)"/>
                         </g>
                     </svg>
@@ -1384,6 +1627,7 @@
                 populatePOIList();
                 setupEventListeners();
                 setupMinimap();
+                setupEnvironment();
                 
                 console.log('DOM setup complete, loading map...');
                 
@@ -1413,6 +1657,91 @@
                 console.error('Initialization error:', error);
                 dom.loadingScreen.innerHTML = '<p style="color: var(--accent-danger);">Error initializing game: ' + error.message + '</p>';
             }
+        }
+
+        function setupEnvironment() {
+            // Add clouds
+            const cloudLayer = document.getElementById('cloud-layer');
+            if (cloudLayer) {
+                for (let i = 0; i < 5; i++) {
+                    const cloud = document.createElement('div');
+                    cloud.className = 'cloud';
+                    cloud.style.top = `${Math.random() * 60}%`;
+                    cloud.style.left = `${Math.random() * 100}%`;
+                    cloud.style.animationDelay = `${i * 20}s`;
+                    cloud.style.animationDuration = `${100 + Math.random() * 50}s`;
+                    cloudLayer.appendChild(cloud);
+                }
+            }
+
+            // Add birds
+            const birdContainer = document.getElementById('bird-container');
+            if (birdContainer) {
+                for (let i = 0; i < 3; i++) {
+                    const bird = document.createElement('div');
+                    bird.className = 'bird';
+                    bird.textContent = '🦅';
+                    bird.style.top = `${20 + Math.random() * 60}%`;
+                    bird.style.animationDelay = `${i * 10}s`;
+                    bird.style.animationDuration = `${25 + Math.random() * 15}s`;
+                    birdContainer.appendChild(bird);
+                }
+            }
+
+            // Add sunbeams
+            const weatherEffects = document.getElementById('weather-effects');
+            if (weatherEffects) {
+                for (let i = 0; i < 3; i++) {
+                    const sunbeam = document.createElement('div');
+                    sunbeam.className = 'sunbeam';
+                    sunbeam.style.left = `${20 + i * 30}%`;
+                    sunbeam.style.top = '-100px';
+                    sunbeam.style.transform = `rotate(${-10 + i * 5}deg)`;
+                    sunbeam.style.animationDelay = `${i * 3}s`;
+                    weatherEffects.appendChild(sunbeam);
+                }
+            }
+
+            // Setup terrain overlay
+            setupTerrainOverlay();
+        }
+
+        function setupTerrainOverlay() {
+            const canvas = document.getElementById('terrain-overlay');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            canvas.width = CONFIG.MAP_WIDTH;
+            canvas.height = CONFIG.MAP_HEIGHT;
+            
+            // Add subtle terrain features
+            const gradient = ctx.createRadialGradient(
+                CONFIG.MAP_WIDTH / 2, CONFIG.MAP_HEIGHT / 2, 0,
+                CONFIG.MAP_WIDTH / 2, CONFIG.MAP_HEIGHT / 2, CONFIG.MAP_WIDTH / 2
+            );
+            gradient.addColorStop(0, 'rgba(255,255,255,0)');
+            gradient.addColorStop(0.7, 'rgba(0,0,0,0.05)');
+            gradient.addColorStop(1, 'rgba(0,0,0,0.2)');
+            
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, CONFIG.MAP_WIDTH, CONFIG.MAP_HEIGHT);
+            
+            // Add some forest patches
+            ctx.globalAlpha = 0.1;
+            const forests = [
+                { x: 300, y: 400, r: 150 },
+                { x: 700, y: 900, r: 200 },
+                { x: 1200, y: 600, r: 180 },
+                { x: 1600, y: 1000, r: 160 }
+            ];
+            
+            forests.forEach(forest => {
+                const grad = ctx.createRadialGradient(forest.x, forest.y, 0, forest.x, forest.y, forest.r);
+                grad.addColorStop(0, 'rgba(34,139,34,0.4)');
+                grad.addColorStop(1, 'transparent');
+                ctx.fillStyle = grad;
+                ctx.fillRect(forest.x - forest.r, forest.y - forest.r, forest.r * 2, forest.r * 2);
+            });
         }
 
         function onMapLoaded() {
@@ -1918,9 +2247,30 @@
             const ctx = state.minimapCtx;
             const scale = 0.08;
             
-            // Clear
-            ctx.fillStyle = '#0f1419';
+            // Clear with gradient background
+            const gradient = ctx.createLinearGradient(0, 0, 0, 150);
+            gradient.addColorStop(0, '#1a2332');
+            gradient.addColorStop(1, '#0f1419');
+            ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, 200, 150);
+            
+            // Draw terrain features
+            ctx.globalAlpha = 0.3;
+            const forests = [
+                { x: 300, y: 400, r: 150 },
+                { x: 700, y: 900, r: 200 },
+                { x: 1200, y: 600, r: 180 },
+                { x: 1600, y: 1000, r: 160 }
+            ];
+            
+            ctx.fillStyle = '#228b22';
+            forests.forEach(forest => {
+                ctx.beginPath();
+                ctx.arc(forest.x * scale, forest.y * scale, forest.r * scale * 0.8, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            
+            ctx.globalAlpha = 1;
             
             // Draw grid
             ctx.strokeStyle = 'rgba(255,255,255,0.05)';
@@ -1938,19 +2288,69 @@
                 ctx.stroke();
             }
             
-            // Draw POIs
+            // Draw POIs with glow effect
             state.pois.forEach(poi => {
+                const x = poi.x * scale;
+                const y = poi.y * scale;
+                
+                // Glow effect
+                if (!poi.visited) {
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = '#fbbf24';
+                    ctx.fillStyle = '#fbbf24';
+                    ctx.globalAlpha = 0.3;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 6, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                    ctx.globalAlpha = 1;
+                }
+                
+                // POI marker
                 ctx.fillStyle = poi.visited ? '#34d399' : '#fbbf24';
                 ctx.beginPath();
-                ctx.arc(poi.x * scale, poi.y * scale, poi.visited ? 2 : 3, 0, Math.PI * 2);
+                ctx.arc(x, y, poi.visited ? 2 : 3, 0, Math.PI * 2);
                 ctx.fill();
+                
+                // POI number
+                if (!poi.visited) {
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '8px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(poi.id, x, y);
+                }
             });
             
-            // Draw helicopter
+            // Draw helicopter with trail
             ctx.save();
+            
+            // Helicopter trail
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2;
+            ctx.globalAlpha = 0.3;
+            ctx.beginPath();
+            const trailLength = 5;
+            for (let i = 0; i < trailLength; i++) {
+                const alpha = 1 - (i / trailLength);
+                const offset = i * 2;
+                const trailX = state.helicopter.x * scale - Math.cos(state.helicopter.angle * Math.PI / 180) * offset;
+                const trailY = state.helicopter.y * scale - Math.sin(state.helicopter.angle * Math.PI / 180) * offset;
+                
+                if (i === 0) {
+                    ctx.moveTo(trailX, trailY);
+                } else {
+                    ctx.lineTo(trailX, trailY);
+                }
+            }
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+            
+            // Helicopter icon
             ctx.translate(state.helicopter.x * scale, state.helicopter.y * scale);
             ctx.rotate((state.helicopter.angle + 90) * Math.PI / 180);
             
+            // Helicopter body
             ctx.fillStyle = '#38bdf8';
             ctx.strokeStyle = '#fff';
             ctx.lineWidth = 1.5;
@@ -1963,7 +2363,24 @@
             ctx.fill();
             ctx.stroke();
             
+            // Direction indicator
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, -4);
+            ctx.lineTo(0, -8);
+            ctx.stroke();
+            
             ctx.restore();
+            
+            // Draw range circle around helicopter
+            ctx.strokeStyle = 'rgba(56,189,248,0.3)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([2, 2]);
+            ctx.beginPath();
+            ctx.arc(state.helicopter.x * scale, state.helicopter.y * scale, CONFIG.LANDING_RADIUS * scale, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
         }
 
         function centerCamera() {
