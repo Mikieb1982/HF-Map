@@ -1488,7 +1488,7 @@
             WIND_EFFECT: 0.01    // Reduced from 0.02
         };
 
-        // POI Data
+        // POI Data - Adjusted coordinates to match map numbers
         const POI_DATA = [
             { id: 1, name: "Stadt und Burg Ziesar", x: 470, y: 150, description: "Auf der Burg Ziesar befindet sich das Museum für brandenburgische Kirchen- und Kulturgeschichte des Mittelalters und der Reformationszeit. Sehenswert sind hier auch die Schlosskapelle und der sehr gut erhaltene Burgfriede - auch Schlosskappelle und der der weiße Blick vom Storchenturm über den ziesarschen Kiez." },
             { id: 2, name: "Gutspark Dahlen", x: 708, y: 357, description: "Der Gutspark Dahlen ist ein Waldstück seltener botanischer Wundt. Wobei die Spatziergänge um den Schwanensee die Besucher verzaubern. Zudem kann der Bauengarten Kultur- und Garttern und Duftrlanzen besucht werden. Gleich gegenüber dem Gutspark steht, etwas verborgen, die Friedhofswehrkirche." },
@@ -1507,6 +1507,10 @@
             { id: 15, name: "Neuendorfer Rummel", x: 1482, y: 1309, description: "Die Rummeln, verzweigte, enge Trockentälchen, entstan-den nach Regien, Birnen und Weiden der Eiszeit. In Zeiten stetig weiter vereist. Wie grüne, bewaldete Finger stie-chen sie sich weit in die Agrarlandschaft hinein. Über den Burgenwanderweg oder den Rundwanderweg 40 kann man die üppig bewach-sene und stellengeise Neuen-dorfer Rummel durchwandern." },
             { id: 16, name: "Garrey mit Aussichtsplattform", x: 1494, y: 1427, description: "Die Landschaft rings um Garrey bietet fantastische Ausblicke, weite Täler und steile, aufgeschnittene Naturpfade. Deshalb 'krönt' eine Aussichtsplattform das alte Wasserwerk, das aufundig restauriert wurde und dem sich eine kleine Ausstellung befindet. Der Ausflug lässt sich sehr gut mit einer Wanderung in die Neuendorfer Rummel und einer Einkehr ins Café Leh-mann in Garrey verbinden." }
         ];
+
+        // Add calibration mode
+        let calibrationMode = false;
+        let selectedPOI = null;
 
         // Game State
         const state = {
